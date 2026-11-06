@@ -4,13 +4,23 @@ import { useRef, useState } from "react";
 import Image from "next/image";
 import { AnimatePresence, motion, useScroll, useTransform } from "motion/react";
 import confetti from "canvas-confetti";
-import { Check, Frown, Loader2, PartyPopper, Send } from "lucide-react";
+import { Check, ChevronDown, Frown, Loader2, PartyPopper, Send } from "lucide-react";
 import { wedding } from "@/config/wedding";
 import { SectionTitle } from "./ui/SectionTitle";
 import { Reveal } from "./ui/Reveal";
 
 const inputClass =
   "w-full rounded-xl border border-gold/25 bg-white/80 px-4 py-3 text-sm text-ink outline-none transition placeholder:text-muted/60 focus:border-gold focus:ring-4 focus:ring-gold/15";
+
+/** Select ẩn mũi tên gốc của trình duyệt, dùng icon riêng căn giữa theo chiều dọc */
+function SelectField(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <div className="relative">
+      <select {...props} className={`${inputClass} cursor-pointer appearance-none pr-11`} />
+      <ChevronDown className="pointer-events-none absolute top-1/2 right-4 size-4 -translate-y-1/2 text-gold" />
+    </div>
+  );
+}
 
 function fireConfetti() {
   const colors = ["#c4878a", "#b08d57", "#f4dfda", "#dcc496", "#6e2838"];
@@ -127,20 +137,20 @@ export function Rsvp() {
                         exit={{ height: 0, opacity: 0 }}
                         className="grid gap-4 overflow-hidden sm:grid-cols-2"
                       >
-                        <select name="guests" defaultValue="1" className={inputClass}>
+                        <SelectField name="guests" defaultValue="1">
                           {[1, 2, 3, 4, 5].map((n) => (
                             <option key={n} value={n}>
                               {n} người
                             </option>
                           ))}
-                        </select>
-                        <select name="side" defaultValue="" className={inputClass}>
+                        </SelectField>
+                        <SelectField name="side" defaultValue="">
                           <option value="" disabled>
                             Bạn là khách của...
                           </option>
                           <option value="groom">Nhà trai</option>
                           <option value="bride">Nhà gái</option>
-                        </select>
+                        </SelectField>
                       </motion.div>
                     )}
                   </AnimatePresence>

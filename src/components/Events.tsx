@@ -21,7 +21,7 @@ function EventCard({ event, index }: { event: WeddingEvent; index: number }) {
   return (
     <Reveal delay={index * 0.15} className="h-full">
       <TiltCard max={6} className="h-full rounded-[2rem]">
-        <article className="group flex h-full flex-col overflow-hidden rounded-[2rem] border border-gold/20 bg-white/80 shadow-[0_25px_60px_rgba(110,40,56,0.12)] backdrop-blur">
+        <article className="group flex h-full flex-col overflow-hidden rounded-[2rem] border border-gold/20 bg-white/95 shadow-[0_25px_60px_rgba(110,40,56,0.12)]">
           <div className="relative h-52 overflow-hidden">
             <Image
               src={event.image}

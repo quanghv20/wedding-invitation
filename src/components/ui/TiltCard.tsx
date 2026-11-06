@@ -34,18 +34,22 @@ export function TiltCard({
   };
 
   return (
-    <motion.div
-      ref={ref}
-      onPointerMove={onMove}
-      onPointerLeave={reset}
-      style={{ rotateX, rotateY, transformPerspective: 1000 }}
-      className={`group/tilt relative ${className}`}
-    >
-      {children}
+    // perspective đặt ở wrapper (không phải transformPerspective) để lúc đứng yên
+    // thẻ không mang transform 3D -> chữ không bị nhòe
+    <div className={className} style={{ perspective: 1000 }}>
       <motion.div
-        style={{ background: glare }}
-        className="pointer-events-none absolute inset-0 rounded-[inherit] opacity-0 transition-opacity duration-300 group-hover/tilt:opacity-100"
-      />
-    </motion.div>
+        ref={ref}
+        onPointerMove={onMove}
+        onPointerLeave={reset}
+        style={{ rotateX, rotateY }}
+        className="group/tilt relative h-full rounded-[inherit]"
+      >
+        {children}
+        <motion.div
+          style={{ background: glare }}
+          className="pointer-events-none absolute inset-0 rounded-[inherit] opacity-0 transition-opacity duration-300 group-hover/tilt:opacity-100"
+        />
+      </motion.div>
+    </div>
   );
 }

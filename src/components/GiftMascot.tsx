@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import {
   animate,
   motion,
@@ -11,8 +11,8 @@ import {
 } from "motion/react";
 import { goToGiftQr } from "./SmoothScroll";
 
-/** Bề rộng vòng bay + bong bóng, chừa chỗ cho nút nhạc bên phải */
-const MASCOT_WIDTH = 350;
+/** Khoảng chừa cho nút nhạc ở góc phải trên */
+const MUSIC_GAP = 72;
 /** Bán kính vòng bay hình elip (px) — đủ rộng để hai bé tách nhau, chỉ chồng lên lúc bay ngang qua */
 const RX = 46;
 const RY = 13;
@@ -39,6 +39,7 @@ function useOrbit(t: MotionValue<number>, phase: number) {
  */
 export function GiftMascot() {
   const move = useAnimationControls();
+  const boxRef = useRef<HTMLDivElement>(null);
   const t = useMotionValue(0);
   const groom = useOrbit(t, 0);
   const bride = useOrbit(t, 0.5);
@@ -49,12 +50,13 @@ export function GiftMascot() {
     return () => controls.stop();
   }, [t]);
 
-  // cả cặp trôi qua lại dọc mép trên
+  // cả cặp trôi qua lại dọc mép trên, ngang qua giữa màn hình
   useEffect(() => {
     let alive = true;
     (async () => {
       while (alive) {
-        const r = Math.max(0, Math.min(window.innerWidth - MASCOT_WIDTH, 560));
+        const w = boxRef.current?.offsetWidth ?? 180;
+        const r = Math.max(0, window.innerWidth - w - MUSIC_GAP);
         await move.start({ x: r, transition: { duration: Math.max(3, r / 40), ease: "easeInOut" } });
         if (!alive) break;
         await move.start({ x: 0, transition: { duration: Math.max(3, r / 40), ease: "easeInOut" } });
@@ -67,7 +69,7 @@ export function GiftMascot() {
   }, [move]);
 
   return (
-    <motion.div animate={move} className="fixed top-1 left-1 z-50 md:top-3 md:left-3">
+    <motion.div ref={boxRef} animate={move} className="fixed top-1 left-1 z-50 md:top-3 md:left-3">
       <motion.button
         type="button"
         onClick={goToGiftQr}
@@ -110,8 +112,8 @@ export function GiftMascot() {
           ))}
         </span>
 
-        {/* bong bóng lời nhắc */}
-        <span className="relative ml-1 rounded-2xl border-2 border-wine/70 bg-white px-3 py-1.5 text-left shadow-[0_8px_20px_rgba(110,40,56,0.22)]">
+        {/* bong bóng lời nhắc — tạm ẩn (bỏ class "hidden" để hiện lại) */}
+        <span className="relative ml-1 hidden rounded-2xl border-2 border-wine/70 bg-white px-3 py-1.5 text-left shadow-[0_8px_20px_rgba(110,40,56,0.22)]">
           <span className="block text-[9px] font-bold tracking-[0.15em] text-rose uppercase md:text-[10px]">
             Mừng cưới online
           </span>
