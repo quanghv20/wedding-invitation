@@ -1,0 +1,157 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ivory: #fdf9f3;
+  --color-cream: #f6eee2;
+  --color-champagne: #ead9bd;
+  --color-gold: #b08d57;
+  --color-gold-light: #dcc496;
+  --color-gold-dark: #8a6a3a;
+  --color-rose: #c4878a;
+  --color-blush: #f4dfda;
+  --color-wine: #6e2838;
+  --color-ink: #3a2e29;
+  --color-muted: #7d6c62;
+
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-shimmer: shimmer 4s linear infinite;
+  --animate-spin-slow: spin 18s linear infinite;
+  --animate-marquee: marquee 60s linear infinite;
+  --animate-heartbeat: heartbeat 1.4s ease-in-out infinite;
+  --animate-ken-burns: ken-burns 24s ease-in-out infinite alternate;
+  --animate-sheen: sheen 3s ease-in-out infinite;
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-14px) rotate(3deg); }
+  }
+  @keyframes shimmer {
+    from { background-position: -200% center; }
+    to { background-position: 200% center; }
+  }
+  @keyframes marquee {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+  @keyframes heartbeat {
+    0%, 100% { transform: scale(1); }
+    15% { transform: scale(1.18); }
+    30% { transform: scale(1); }
+    45% { transform: scale(1.12); }
+  }
+  @keyframes sheen {
+    0% { transform: translateX(-100%); }
+    60%, 100% { transform: translateX(100%); }
+  }
+  @keyframes ken-burns {
+    from { transform: scale(1.05) translate(0, 0); }
+    to { transform: scale(1.18) translate(-1.5%, -2%); }
+  }
+}
+
+@theme inline {
+  --font-script: var(--font-great-vibes), cursive;
+  --font-serif: var(--font-cormorant), Georgia, serif;
+  --font-sans: var(--font-be-vietnam), system-ui, sans-serif;
+}
+
+@utility text-gold-gradient {
+  background-image: linear-gradient(
+    100deg,
+    var(--color-gold-dark) 0%,
+    var(--color-gold-light) 25%,
+    #f7ead0 50%,
+    var(--color-gold-light) 75%,
+    var(--color-gold-dark) 100%
+  );
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: var(--animate-shimmer);
+}
+
+@utility text-vibrant-gradient {
+  background-image: linear-gradient(100deg, #a3124a 0%, #e0306a 30%, #f2575f 50%, #e0306a 70%, #a3124a 100%);
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: var(--animate-shimmer);
+}
+
+@utility paper-texture {
+  background-color: var(--color-ivory);
+  background-image:
+    radial-gradient(circle at 20% 10%, rgb(234 217 189 / 0.35), transparent 40%),
+    radial-gradient(circle at 85% 90%, rgb(244 223 218 / 0.45), transparent 45%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.05'/%3E%3C/svg%3E");
+}
+
+@utility glass {
+  background: rgb(255 255 255 / 0.55);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  border: 1px solid rgb(255 255 255 / 0.6);
+}
+
+html {
+  scroll-behavior: auto;
+  overflow-x: clip;
+  /* Cormorant mặc định dùng số kiểu cổ (lên xuống không đều) — ép về số thẳng hàng */
+  font-variant-numeric: lining-nums;
+}
+
+body {
+  background: var(--color-ivory);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
+}
+
+/* iOS tự phóng to khi focus ô nhập có cỡ chữ < 16px */
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+::selection {
+  background: var(--color-blush);
+  color: var(--color-wine);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-cream);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-gold-light);
+  border-radius: 999px;
+}
+
+/* Lenis */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
