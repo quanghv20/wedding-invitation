@@ -4,10 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import { AnimatePresence, motion, type Variants } from "motion/react";
 import { ChevronLeft, ChevronRight, Expand, X } from "lucide-react";
-import { wedding } from "@/config/wedding";
+import { useWedding } from "./WeddingProvider";
 import { SectionTitle } from "./ui/SectionTitle";
 
-const photos = wedding.gallery;
 const slide: Variants = {
   enter: (d: number) => ({ opacity: 0, x: d * 120, scale: d === 0 ? 0.85 : 1 }),
   center: { opacity: 1, x: 0, scale: 1 },
@@ -16,6 +15,7 @@ const slide: Variants = {
 const aspects = ["aspect-[3/4]", "aspect-square", "aspect-[4/5]", "aspect-[3/4]", "aspect-[4/3]", "aspect-[2/3]"];
 
 function Lightbox({ index, onClose, onChange }: { index: number; onClose: () => void; onChange: (i: number) => void }) {
+  const { gallery: photos } = useWedding();
   const [direction, setDirection] = useState(0);
 
   const go = useCallback(
@@ -23,7 +23,7 @@ function Lightbox({ index, onClose, onChange }: { index: number; onClose: () => 
       setDirection(step);
       onChange((index + step + photos.length) % photos.length);
     },
-    [index, onChange],
+    [index, onChange, photos.length],
   );
 
   useEffect(() => {
@@ -42,7 +42,7 @@ function Lightbox({ index, onClose, onChange }: { index: number; onClose: () => 
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       data-lenis-prevent
-      className="fixed inset-0 z-[110] flex items-center justify-center bg-black/90 backdrop-blur-md"
+      className="fixed inset-0 z-[110] flex items-center justify-center bg-black/90 backdrop-blur-md pointer-coarse:backdrop-blur-none"
       onClick={onClose}
     >
       <button
@@ -101,6 +101,7 @@ function Lightbox({ index, onClose, onChange }: { index: number; onClose: () => 
 }
 
 export function Gallery() {
+  const { gallery: photos } = useWedding();
   const [selected, setSelected] = useState<number | null>(null);
 
   useEffect(() => {

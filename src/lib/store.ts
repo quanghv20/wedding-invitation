@@ -1,8 +1,10 @@
 import { promises as fs } from "fs";
 import path from "path";
+import { getValue, hasDatabase, prependValue } from "./db";
 
 /**
  * Lưu trữ RSVP & lời chúc.
+ * - Có DATABASE_URL: dùng bảng wedding_data trong PostgreSQL.
  * - Khi chạy trên Netlify: dùng Netlify Blobs (tự có sẵn, không cần cấu hình).
  * - Khi chạy trên máy / VPS: dùng file JSON trong thư mục /data.
  */
@@ -19,6 +21,8 @@ async function blobStore() {
 }
 
 export async function readCollection<T>(name: string, fallback: T[] = []): Promise<T[]> {
+  if (hasDatabase()) return (await getValue<T[]>(name)) ?? fallback;
+
   const store = await blobStore();
   try {
     if (store) return ((await store.get(name, { type: "json" })) as T[] | null) ?? fallback;
@@ -30,6 +34,8 @@ export async function readCollection<T>(name: string, fallback: T[] = []): Promi
 }
 
 export async function appendToCollection<T>(name: string, item: T, fallback: T[] = []) {
+  if (hasDatabase()) return prependValue(name, item, fallback);
+
   const items = await readCollection<T>(name, fallback);
   items.unshift(item);
   const store = await blobStore();

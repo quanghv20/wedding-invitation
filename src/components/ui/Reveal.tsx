@@ -23,10 +23,12 @@ export function Reveal({
   delay = 0,
   duration = 0.9,
   children,
+  className = "",
   ...props
 }: RevealProps) {
   return (
     <motion.div
+      className={`no-blur-touch ${className}`}
       initial={{ opacity: 0, filter: "blur(6px)", ...offsets[direction] }}
       whileInView={{
         opacity: 1,

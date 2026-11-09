@@ -4,11 +4,12 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { AnimatePresence, motion, useAnimationControls } from "motion/react";
 import { Check, Copy, ScanLine } from "lucide-react";
-import { wedding } from "@/config/wedding";
+import type { WeddingContent } from "@/config/wedding";
+import { useWedding } from "./WeddingProvider";
 import { SectionTitle } from "./ui/SectionTitle";
 import { Reveal } from "./ui/Reveal";
 
-type GiftInfo = (typeof wedding.gifts)[number];
+type GiftInfo = WeddingContent["gifts"][number];
 
 const qrUrl = (g: GiftInfo) =>
   `https://img.vietqr.io/image/${g.bankId}-${g.accountNo}-qr_only.png?accountName=${encodeURIComponent(
@@ -98,6 +99,7 @@ function GiftCard({ gift, index }: { gift: GiftInfo; index: number }) {
 }
 
 export function Gift() {
+  const wedding = useWedding();
   return (
     <section id="gift" className="relative overflow-hidden bg-gradient-to-b from-ivory via-blush/40 to-ivory px-4 py-24 md:py-32">
       <SectionTitle

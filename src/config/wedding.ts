@@ -1,6 +1,7 @@
 /**
- * TOÀN BỘ NỘI DUNG THIỆP NẰM Ở FILE NÀY.
- * Chỉ cần sửa thông tin bên dưới là thiệp tự cập nhật.
+ * NỘI DUNG MẶC ĐỊNH CỦA THIỆP.
+ * Nội dung thật nằm trong database và được sửa ở trang /admin. File này chỉ dùng để
+ * nạp dữ liệu ban đầu (`npm run db:setup`) và khi chạy không có DATABASE_URL.
  * Ảnh: thay link Unsplash bằng ảnh của bạn (đặt vào /public/images rồi dùng "/images/ten-anh.jpg").
  */
 
@@ -139,6 +140,7 @@ export const wedding = {
   footerImage: unsplash("1532712938310-34cb3982ef74", 2000),
 };
 
-export type WeddingEvent = (typeof wedding.events)[number];
+export type WeddingContent = typeof wedding;
+export type WeddingEvent = WeddingContent["events"][number];
 
-export const mainEvent = wedding.events.find((e) => e.main) ?? wedding.events[0];
+export const mainEventOf = (content: WeddingContent) => content.events.find((e) => e.main) ?? content.events[0];

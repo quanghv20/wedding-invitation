@@ -143,8 +143,7 @@ function Dragon({ kind }: { kind: "groom" | "bride" }) {
   return (
     <svg
       viewBox="0 0 140 120"
-      className="h-[56px] w-[66px] overflow-visible md:h-[68px] md:w-[80px]"
-      style={{ filter: "drop-shadow(0 0 1.2px #fff) drop-shadow(0 4px 5px rgba(40,30,60,0.3))" }}
+      className="h-[56px] w-[66px] overflow-visible [filter:drop-shadow(0_0_1.2px_#fff)_drop-shadow(0_4px_5px_rgba(40,30,60,0.3))] pointer-coarse:[filter:none] md:h-[68px] md:w-[80px]"
       aria-hidden
     >
       <defs>

@@ -3,13 +3,15 @@
 import Image from "next/image";
 import { motion } from "motion/react";
 import { CalendarPlus, Clock, MapPin, Navigation } from "lucide-react";
-import { wedding, type WeddingEvent } from "@/config/wedding";
+import type { WeddingEvent } from "@/config/wedding";
 import { dateParts, formatTime, googleCalendarUrl, mapsEmbedUrl, mapsUrl, weekdayName } from "@/lib/format";
+import { useWedding } from "./WeddingProvider";
 import { Reveal } from "./ui/Reveal";
 import { SectionTitle } from "./ui/SectionTitle";
 import { TiltCard } from "./ui/TiltCard";
 
 function EventCard({ event, index }: { event: WeddingEvent; index: number }) {
+  const wedding = useWedding();
   const d = dateParts(event.start);
   const calendarUrl = googleCalendarUrl({
     title: `${event.title} — ${wedding.groom.name} & ${wedding.bride.name}`,
@@ -88,19 +90,20 @@ function EventCard({ event, index }: { event: WeddingEvent; index: number }) {
 }
 
 export function Events() {
+  const wedding = useWedding();
   return (
     <section id="events" className="relative overflow-hidden bg-gradient-to-b from-ivory via-cream to-ivory px-4 py-24 md:py-32">
       <motion.div
         aria-hidden
         animate={{ scale: [1, 1.2, 1], opacity: [0.4, 0.6, 0.4] }}
         transition={{ duration: 10, repeat: Infinity }}
-        className="pointer-events-none absolute top-1/3 -left-40 size-96 rounded-full bg-blush blur-3xl"
+        className="soft-blob-touch pointer-events-none absolute top-1/3 -left-40 size-96 rounded-full bg-blush blur-3xl [--blob:var(--color-blush)]"
       />
       <motion.div
         aria-hidden
         animate={{ scale: [1.2, 1, 1.2], opacity: [0.3, 0.5, 0.3] }}
         transition={{ duration: 12, repeat: Infinity }}
-        className="pointer-events-none absolute -right-40 bottom-1/4 size-96 rounded-full bg-champagne blur-3xl"
+        className="soft-blob-touch pointer-events-none absolute -right-40 bottom-1/4 size-96 rounded-full bg-champagne blur-3xl [--blob:var(--color-champagne)]"
       />
 
       <SectionTitle

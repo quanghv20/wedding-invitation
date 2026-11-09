@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "db:setup": "tsx --env-file=.env.local scripts/db-setup.ts"
   },
   "dependencies": {
     "@netlify/blobs": "^10.7.13",
@@ -14,6 +15,7 @@
     "lucide-react": "^1.63.0",
     "motion": "^14.7.1",
     "next": "^16.4.3",
+    "pg": "^8.23.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },
@@ -21,9 +23,11 @@
     "@tailwindcss/postcss": "^4.3.3",
     "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^26.6.5",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   }
 }

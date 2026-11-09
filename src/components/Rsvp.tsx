@@ -5,7 +5,7 @@ import Image from "next/image";
 import { AnimatePresence, motion, useScroll, useTransform } from "motion/react";
 import confetti from "canvas-confetti";
 import { Check, ChevronDown, Frown, Loader2, PartyPopper, Send } from "lucide-react";
-import { wedding } from "@/config/wedding";
+import { useWedding } from "./WeddingProvider";
 import { SectionTitle } from "./ui/SectionTitle";
 import { Reveal } from "./ui/Reveal";
 
@@ -33,6 +33,7 @@ function fireConfetti() {
 }
 
 export function Rsvp() {
+  const wedding = useWedding();
   const ref = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "end start"] });
   const bgY = useTransform(scrollYProgress, [0, 1], ["-15%", "15%"]);
@@ -63,7 +64,7 @@ export function Rsvp() {
   return (
     <section id="rsvp" ref={ref} className="relative overflow-hidden px-4 py-24 md:py-32">
       <motion.div style={{ y: bgY }} className="absolute -inset-y-[15%] inset-x-0">
-        <Image src={wedding.gallery[3]} alt="" fill sizes="100vw" className="object-cover" />
+        <Image src={wedding.gallery[3] ?? wedding.hero.image} alt="" fill sizes="100vw" className="object-cover" />
       </motion.div>
       <div className="absolute inset-0 bg-gradient-to-b from-wine/85 via-ink/80 to-wine/85" />
 
@@ -76,7 +77,7 @@ export function Rsvp() {
         />
 
         <Reveal direction="zoom" className="mx-auto max-w-xl">
-          <div className="rounded-[2rem] border border-white/20 bg-ivory/95 p-6 shadow-2xl backdrop-blur md:p-10">
+          <div className="rounded-[2rem] border border-white/20 bg-ivory/95 p-6 shadow-2xl backdrop-blur pointer-coarse:backdrop-blur-none md:p-10">
             <AnimatePresence mode="wait">
               {status === "done" ? (
                 <motion.div

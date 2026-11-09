@@ -4,9 +4,10 @@ import { useRef } from "react";
 import Image from "next/image";
 import { motion, useScroll, useTransform } from "motion/react";
 import { Heart } from "lucide-react";
-import { wedding } from "@/config/wedding";
+import { useWedding } from "./WeddingProvider";
 
 export function Footer() {
+  const wedding = useWedding();
   const ref = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "end end"] });
   const scale = useTransform(scrollYProgress, [0, 1], [1.3, 1]);

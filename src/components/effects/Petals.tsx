@@ -31,7 +31,8 @@ export function Petals() {
     let width = 0;
     let height = 0;
     let frame = 0;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const touch = window.matchMedia("(pointer: coarse)").matches;
+    const dpr = Math.min(window.devicePixelRatio || 1, touch ? 1.5 : 2);
 
     const create = (initial: boolean): Petal => ({
       x: Math.random() * width,
@@ -50,8 +51,12 @@ export function Petals() {
     let petals: Petal[] = [];
 
     const resize = () => {
+      // Trên điện thoại, thanh địa chỉ co giãn khi cuộn cũng bắn "resize":
+      // bỏ qua để canvas không bị tạo lại và cánh hoa không nhảy vị trí
+      if (touch && width && window.innerWidth === width) return;
       width = window.innerWidth;
-      height = window.innerHeight;
+      // chừa sẵn phần thanh địa chỉ sẽ thu lại
+      height = window.innerHeight + (touch ? 120 : 0);
       canvas.width = width * dpr;
       canvas.height = height * dpr;
       canvas.style.width = `${width}px`;

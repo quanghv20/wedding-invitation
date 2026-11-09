@@ -3,8 +3,8 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useCountdown } from "@/lib/hooks";
 import { Heart } from "lucide-react";
-import { wedding } from "@/config/wedding";
 import { dateParts } from "@/lib/format";
+import { useWedding } from "./WeddingProvider";
 import { Reveal } from "./ui/Reveal";
 import { SectionTitle } from "./ui/SectionTitle";
 import { FloralCorner } from "./ui/Ornament";
@@ -13,7 +13,7 @@ function FlipNumber({ value, label }: { value: number | null; label: string }) {
   const text = value === null ? "--" : String(value).padStart(2, "0");
   return (
     <div className="flex flex-col items-center">
-      <div className="relative flex h-20 w-16 items-center justify-center overflow-hidden rounded-2xl border border-gold/20 bg-white/70 shadow-[0_10px_30px_rgba(176,141,87,0.15)] backdrop-blur sm:h-28 sm:w-24 md:h-32 md:w-28">
+      <div className="relative flex h-20 w-16 items-center justify-center overflow-hidden rounded-2xl border border-gold/20 bg-white/70 shadow-[0_10px_30px_rgba(176,141,87,0.15)] backdrop-blur pointer-coarse:bg-white/85 pointer-coarse:backdrop-blur-none sm:h-28 sm:w-24 md:h-32 md:w-28">
         <span className="absolute inset-x-0 top-1/2 h-px bg-gold/15" />
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.span
@@ -34,6 +34,7 @@ function FlipNumber({ value, label }: { value: number | null; label: string }) {
 }
 
 function MonthCalendar() {
+  const wedding = useWedding();
   const { month, year } = dateParts(wedding.date);
   const weddingDays = new Set(
     wedding.events.map((e) => dateParts(e.start)).filter((d) => d.month === month).map((d) => d.day),
@@ -45,7 +46,7 @@ function MonthCalendar() {
   const cells = [...Array(offset).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
 
   return (
-    <div className="mx-auto w-full max-w-sm rounded-3xl border border-gold/20 bg-white/70 p-6 shadow-[0_20px_50px_rgba(176,141,87,0.15)] backdrop-blur md:p-8">
+    <div className="mx-auto w-full max-w-sm rounded-3xl border border-gold/20 bg-white/70 p-6 shadow-[0_20px_50px_rgba(176,141,87,0.15)] backdrop-blur pointer-coarse:bg-white/85 pointer-coarse:backdrop-blur-none md:p-8">
       <p className="text-center font-serif text-2xl text-ink">
         Tháng {month} <span className="text-gold">/</span> {year}
       </p>
@@ -80,6 +81,7 @@ function MonthCalendar() {
 }
 
 export function Countdown() {
+  const wedding = useWedding();
   const time = useCountdown(wedding.date);
 
   return (

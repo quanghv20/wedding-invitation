@@ -3,11 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { Music, Pause } from "lucide-react";
-import { wedding } from "@/config/wedding";
+import { useWedding } from "./WeddingProvider";
 
 const UNLOCK_EVENTS = ["click", "keydown"];
 
 export function MusicPlayer() {
+  const wedding = useWedding();
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [available, setAvailable] = useState(true);

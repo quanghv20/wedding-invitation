@@ -3,9 +3,10 @@
 import Image from "next/image";
 import { motion, type Variants } from "motion/react";
 import { CalendarPlus, Clock, Gift, MapPin, Navigation, Send } from "lucide-react";
-import { mainEvent, wedding } from "@/config/wedding";
+import { mainEventOf } from "@/config/wedding";
 import { dateParts, formatTime, googleCalendarUrl, mapsUrl, weekdayName } from "@/lib/format";
 import { useCountdown, useGuestName } from "@/lib/hooks";
+import { useWedding } from "./WeddingProvider";
 import { VibrantBackground } from "./effects/VibrantBackground";
 import { FloralCorner } from "./ui/Ornament";
 import { goToGiftQr, scrollToId } from "./SmoothScroll";
@@ -22,17 +23,17 @@ const item: Variants = {
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
-/** Các ngày diễn ra sự kiện (không trùng lặp), theo thứ tự */
-const days = Array.from(
-  new Map(
-    wedding.events.map((e) => {
-      const d = dateParts(e.start);
-      return [`${d.year}-${d.month}-${d.day}`, { ...d, iso: e.start }];
-    }),
-  ).values(),
-);
-
 function DateBlock() {
+  const wedding = useWedding();
+  /** Các ngày diễn ra sự kiện (không trùng lặp), theo thứ tự */
+  const days = Array.from(
+    new Map(
+      wedding.events.map((e) => {
+        const d = dateParts(e.start);
+        return [`${d.year}-${d.month}-${d.day}`, { ...d, iso: e.start }];
+      }),
+    ).values(),
+  );
   const first = days[0];
   const last = days[days.length - 1];
   const side = "w-24 border-y border-wine/30 py-1.5 text-[11px] font-semibold tracking-[0.2em] text-wine uppercase sm:w-28 sm:text-xs";
@@ -54,6 +55,7 @@ function DateBlock() {
 }
 
 function MiniCountdown() {
+  const wedding = useWedding();
   const time = useCountdown(wedding.date);
   const units = [
     { label: "Ngày", value: time?.days },
@@ -81,6 +83,7 @@ function MiniCountdown() {
 }
 
 function Schedule() {
+  const wedding = useWedding();
   return (
     <ul className="space-y-2">
       {wedding.events.map((e) => {
@@ -115,6 +118,8 @@ function Schedule() {
 
 export function Hero() {
   const guest = useGuestName();
+  const wedding = useWedding();
+  const mainEvent = mainEventOf(wedding);
   const place = `${mainEvent.venue}, ${mainEvent.address}`;
   const calendarUrl = googleCalendarUrl({
     title: `Đám cưới ${wedding.groom.name} & ${wedding.bride.name}`,
@@ -136,7 +141,7 @@ export function Hero() {
         variants={stagger}
         initial="hidden"
         animate="show"
-        className="relative mx-auto grid max-w-6xl items-center gap-8 px-4 pt-24 pb-28 md:pt-28 lg:min-h-svh lg:grid-cols-[5fr_6fr] lg:gap-14 lg:pb-20"
+        className="no-blur-touch-all relative mx-auto grid max-w-6xl items-center gap-8 px-4 pt-24 pb-28 md:pt-28 lg:min-h-svh lg:grid-cols-[5fr_6fr] lg:gap-14 lg:pb-20"
       >
         {/* Ảnh cặp đôi */}
         <motion.div variants={item} className="relative order-2 mx-auto lg:sticky lg:top-24 lg:order-1 lg:row-span-2 lg:self-start">

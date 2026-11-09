@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Be_Vietnam_Pro, Cormorant_Garamond, Great_Vibes } from "next/font/google";
-import { wedding } from "@/config/wedding";
 import "./globals.css";
 
 const greatVibes = Great_Vibes({
@@ -25,18 +24,8 @@ const beVietnam = Be_Vietnam_Pro({
   display: "swap",
 });
 
-const title = `${wedding.groom.name} & ${wedding.bride.name} — Thiệp mời cưới`;
-const description = `Trân trọng kính mời bạn đến chung vui trong ngày trọng đại của ${wedding.groom.name} & ${wedding.bride.name}.`;
-
 export const metadata: Metadata = {
-  title,
-  description,
-  openGraph: {
-    title,
-    description,
-    type: "website",
-    images: [{ url: wedding.hero.image, width: 1200, height: 630 }],
-  },
+  metadataBase: new URL("https://thiepcuoionline.fun"),
 };
 
 export const viewport: Viewport = {

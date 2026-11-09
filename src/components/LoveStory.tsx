@@ -4,10 +4,11 @@ import { useRef } from "react";
 import Image from "next/image";
 import { motion, useScroll, useSpring } from "motion/react";
 import { Heart } from "lucide-react";
-import { wedding } from "@/config/wedding";
+import type { WeddingContent } from "@/config/wedding";
+import { useWedding } from "./WeddingProvider";
 import { SectionTitle } from "./ui/SectionTitle";
 
-type Story = (typeof wedding.story)[number];
+type Story = WeddingContent["story"][number];
 
 function StoryItem({ item, index }: { item: Story; index: number }) {
   const reversed = index % 2 === 1;
@@ -54,6 +55,7 @@ function StoryItem({ item, index }: { item: Story; index: number }) {
 }
 
 export function LoveStory() {
+  const wedding = useWedding();
   const ref = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start 70%", "end 60%"] });
   const scaleY = useSpring(scrollYProgress, { stiffness: 100, damping: 30 });

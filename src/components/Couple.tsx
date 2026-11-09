@@ -3,12 +3,13 @@
 import Image from "next/image";
 import { motion } from "motion/react";
 import { Heart } from "lucide-react";
-import { wedding } from "@/config/wedding";
+import type { WeddingContent } from "@/config/wedding";
+import { useWedding } from "./WeddingProvider";
 import { Reveal } from "./ui/Reveal";
 import { SectionTitle } from "./ui/SectionTitle";
 import { TiltCard } from "./ui/TiltCard";
 
-type Person = typeof wedding.groom;
+type Person = WeddingContent["groom"];
 
 function PersonCard({ person, from }: { person: Person; from: "left" | "right" }) {
   return (
@@ -30,7 +31,7 @@ function PersonCard({ person, from }: { person: Person; from: "left" | "right" }
             className="object-cover transition-transform duration-[1.5s] ease-out group-hover:scale-110"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-wine/60 via-transparent to-transparent" />
-          <span className="absolute bottom-5 left-1/2 -translate-x-1/2 rounded-full bg-ivory/90 px-5 py-1.5 font-serif text-xs tracking-[0.3em] text-wine uppercase backdrop-blur">
+          <span className="absolute bottom-5 left-1/2 -translate-x-1/2 rounded-full bg-ivory/90 px-5 py-1.5 font-serif text-xs tracking-[0.3em] text-wine uppercase backdrop-blur pointer-coarse:backdrop-blur-none">
             {person.role}
           </span>
         </div>
@@ -49,6 +50,7 @@ function PersonCard({ person, from }: { person: Person; from: "left" | "right" }
 }
 
 export function Couple() {
+  const wedding = useWedding();
   return (
     <section id="couple" className="relative overflow-hidden bg-gradient-to-b from-ivory via-blush/30 to-ivory px-4 py-24 md:py-32">
       <SectionTitle
