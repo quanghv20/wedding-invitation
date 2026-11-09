@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, ExternalLink, Loader2, LogOut, Plus, Save, Trash2 } from "lucide-react";
 import type { WeddingContent } from "@/config/wedding";
 import type { Rsvp } from "@/app/api/rsvp/route";
 import type { Wish } from "@/app/api/wishes/route";
+import { PREVIEW_READY, PREVIEW_SECTIONS, PREVIEW_UPDATE, type PreviewMessage, type PreviewSection } from "./previewProtocol";
 
 type Data = { content: WeddingContent; rsvp: Rsvp[]; wishes: Wish[] };
 type Tab = "content" | "rsvp" | "wishes";
@@ -157,31 +158,95 @@ function PersonFields({
   );
 }
 
-function ContentForm({ content, onChange }: { content: WeddingContent; onChange: (content: WeddingContent) => void }) {
+/** Khung điện thoại chạy chính các component của thiệp, hiển thị cả nội dung chưa lưu */
+function PhonePreview({ content, section }: { content: WeddingContent; section: PreviewSection }) {
+  const frameRef = useRef<HTMLIFrameElement>(null);
+  const [readyCount, setReadyCount] = useState(0);
+  const label = PREVIEW_SECTIONS.find((s) => s.id === section)?.label;
+
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin || event.source !== frameRef.current?.contentWindow) return;
+      if (event.data?.type === PREVIEW_READY) setReadyCount((count) => count + 1);
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
+
+  useEffect(() => {
+    if (!readyCount) return;
+    const message: PreviewMessage = { type: PREVIEW_UPDATE, content, section };
+    frameRef.current?.contentWindow?.postMessage(message, window.location.origin);
+  }, [readyCount, content, section]);
+
+  return (
+    <aside className="sticky top-[72px] hidden lg:block">
+      <p className="mb-2 text-center text-xs font-medium text-muted">Xem trước: {label}</p>
+      <div className="overflow-hidden rounded-[2.5rem] border-[10px] border-ink bg-ink shadow-xl">
+        <iframe
+          ref={frameRef}
+          src="/admin/preview"
+          title="Xem trước trên điện thoại"
+          className="block h-[min(calc(100svh-190px),780px)] w-[390px] rounded-[1.75rem] bg-white"
+        />
+      </div>
+    </aside>
+  );
+}
+
+function ContentForm({
+  content,
+  section,
+  onChange,
+}: {
+  content: WeddingContent;
+  section: PreviewSection;
+  onChange: (content: WeddingContent) => void;
+}) {
   const update = (changes: Partial<WeddingContent>) => onChange({ ...content, ...changes });
 
   return (
     <div className="space-y-5">
-      <Section title="Chú rể">
-        <PersonFields person={content.groom} onChange={(groom) => update({ groom })} />
-      </Section>
-      <Section title="Cô dâu">
-        <PersonFields person={content.bride} onChange={(bride) => update({ bride })} />
-      </Section>
-
-      <Section title="Thời gian & lời dẫn">
-        <div className={grid}>
-          <DateField label="Thời điểm đếm ngược (giờ Việt Nam)" value={content.date} onChange={(date) => update({ date })} />
-          <Field label="Ngày hiển thị ở cuối trang" value={content.displayDate} onChange={(displayDate) => update({ displayDate })} />
-          <Field label="Ngày âm lịch" value={content.lunarDate} onChange={(lunarDate) => update({ lunarDate })} />
-          <Field label="Hạn xác nhận tham dự" value={content.rsvpDeadline} onChange={(rsvpDeadline) => update({ rsvpDeadline })} />
-          <div className="sm:col-span-2">
-            <Field label="Câu trích dẫn" multiline rows={2} value={content.quote} onChange={(quote) => update({ quote })} />
+      {section === "home" && (
+        <Section title="Trang chủ">
+          <div className={grid}>
+            <Field label="Tên chú rể" value={content.groom.name} onChange={(name) => update({ groom: { ...content.groom, name } })} />
+            <Field label="Tên cô dâu" value={content.bride.name} onChange={(name) => update({ bride: { ...content.bride, name } })} />
+            <div className="sm:col-span-2">
+              <Field label="Ngày âm lịch" value={content.lunarDate} onChange={(lunarDate) => update({ lunarDate })} />
+            </div>
+            <ImageField label="Ảnh chính" value={content.hero.image} onChange={(image) => update({ hero: { image } })} />
           </div>
-          <Field label="Tác giả câu trích dẫn" value={content.quoteAuthor} onChange={(quoteAuthor) => update({ quoteAuthor })} />
-        </div>
-      </Section>
+          <p className="mt-4 text-xs text-muted">Lịch trình và địa điểm ở trang chủ được sửa trong tab Sự kiện.</p>
+        </Section>
+      )}
 
+      {section === "countdown" && (
+        <Section title="Đếm ngược & lời dẫn">
+          <div className={grid}>
+            <div className="sm:col-span-2">
+              <DateField label="Thời điểm đếm ngược (giờ Việt Nam)" value={content.date} onChange={(date) => update({ date })} />
+            </div>
+            <div className="sm:col-span-2">
+              <Field label="Câu trích dẫn" multiline rows={2} value={content.quote} onChange={(quote) => update({ quote })} />
+            </div>
+            <Field label="Tác giả câu trích dẫn" value={content.quoteAuthor} onChange={(quoteAuthor) => update({ quoteAuthor })} />
+          </div>
+        </Section>
+      )}
+
+      {section === "couple" && (
+        <>
+          <Section title="Chú rể">
+            <PersonFields person={content.groom} onChange={(groom) => update({ groom })} />
+          </Section>
+          <Section title="Cô dâu">
+            <PersonFields person={content.bride} onChange={(bride) => update({ bride })} />
+          </Section>
+        </>
+      )}
+
+      {section === "events" && (
       <Section title="Sự kiện">
         <div className="mb-4">
           <Field label="Địa chỉ trên bản đồ" value={content.mapQuery} onChange={(mapQuery) => update({ mapQuery })} />
@@ -218,7 +283,9 @@ function ContentForm({ content, onChange }: { content: WeddingContent; onChange:
           )}
         />
       </Section>
+      )}
 
+      {section === "story" && (
       <Section title="Chuyện tình">
         <ListEditor
           items={content.story}
@@ -237,25 +304,39 @@ function ContentForm({ content, onChange }: { content: WeddingContent; onChange:
           )}
         />
       </Section>
+      )}
 
-      <Section title="Hình ảnh & nhạc">
-        <div className="space-y-4">
-          <div className={grid}>
-            <ImageField label="Ảnh chính" value={content.hero.image} onChange={(image) => update({ hero: { image } })} />
-            <ImageField label="Ảnh cuối trang" value={content.footerImage} onChange={(footerImage) => update({ footerImage })} />
-          </div>
+      {section === "gallery" && (
+        <Section title="Album">
           <Field
             label="Album ảnh"
             hint="Mỗi dòng một ảnh: /images/ten-anh.jpg (trong thư mục public) hoặc link images.unsplash.com"
             multiline
-            rows={10}
+            rows={14}
             value={content.gallery.join("\n")}
             onChange={(value) => update({ gallery: value.split("\n") })}
           />
-          <Field label="Nhạc nền" value={content.music} onChange={(music) => update({ music })} />
-        </div>
-      </Section>
+        </Section>
+      )}
 
+      {section === "rsvp" && (
+        <Section title="Xác nhận tham dự">
+          <Field label="Hạn xác nhận tham dự" value={content.rsvpDeadline} onChange={(rsvpDeadline) => update({ rsvpDeadline })} />
+          <p className="mt-4 text-xs text-muted">Ảnh nền của phần này là ảnh thứ 4 trong Album. Form trong khung xem trước không gửi dữ liệu thật.</p>
+        </Section>
+      )}
+
+      {section === "footer" && (
+        <Section title="Cuối trang & nhạc">
+          <div className={grid}>
+            <ImageField label="Ảnh cuối trang" value={content.footerImage} onChange={(footerImage) => update({ footerImage })} />
+            <Field label="Ngày hiển thị ở cuối trang" value={content.displayDate} onChange={(displayDate) => update({ displayDate })} />
+            <Field label="Nhạc nền" value={content.music} onChange={(music) => update({ music })} />
+          </div>
+        </Section>
+      )}
+
+      {section === "gift" && (
       <Section title="Mừng cưới">
         <ListEditor
           items={content.gifts}
@@ -273,11 +354,12 @@ function ContentForm({ content, onChange }: { content: WeddingContent; onChange:
           )}
         />
       </Section>
+      )}
     </div>
   );
 }
 
-const formatDate = (iso: string) => new Date(iso).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" });
+const formatDate =(iso: string) => new Date(iso).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" });
 const SIDE_LABEL: Record<string, string> = { groom: "Nhà trai", bride: "Nhà gái" };
 
 function RsvpList({ items }: { items: Rsvp[] }) {
@@ -376,6 +458,7 @@ export function AdminApp() {
   const [status, setStatus] = useState<"loading" | "login" | "ready" | "error">("loading");
   const [data, setData] = useState<Data | null>(null);
   const [tab, setTab] = useState<Tab>("content");
+  const [section, setSection] = useState<PreviewSection>("home");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -445,7 +528,7 @@ export function AdminApp() {
   return (
     <div className="min-h-svh bg-ivory text-ink">
       <header className="sticky top-0 z-10 border-b border-gold/20 bg-white/95">
-        <div className="mx-auto flex max-w-4xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
           <h1 className="font-serif text-xl font-semibold text-wine">Quản trị thiệp</h1>
           <nav className="flex gap-1">
             {tabs.map((t) => (
@@ -470,15 +553,37 @@ export function AdminApp() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-4xl px-4 py-6 pb-28">
-        {tab === "content" && <ContentForm content={data.content} onChange={(content) => setData({ ...data, content })} />}
+      <main className={`mx-auto px-4 py-6 pb-28 ${tab === "content" ? "max-w-7xl" : "max-w-4xl"}`}>
+        {tab === "content" && (
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+            <div className="min-w-0">
+              <nav aria-label="Phần cần chỉnh sửa" className="mb-5 flex flex-wrap gap-2">
+                {PREVIEW_SECTIONS.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    aria-pressed={section === s.id}
+                    onClick={() => setSection(s.id)}
+                    className={`cursor-pointer rounded-full border px-3.5 py-1.5 text-sm transition ${
+                      section === s.id ? "border-wine bg-wine text-ivory" : "border-gold/30 bg-white text-ink/80 hover:bg-blush/50"
+                    }`}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </nav>
+              <ContentForm content={data.content} section={section} onChange={(content) => setData({ ...data, content })} />
+            </div>
+            <PhonePreview content={data.content} section={section} />
+          </div>
+        )}
         {tab === "rsvp" && <RsvpList items={data.rsvp} />}
         {tab === "wishes" && <WishList items={data.wishes} />}
       </main>
 
       {tab === "content" && (
         <div className="fixed inset-x-0 bottom-0 z-10 border-t border-gold/20 bg-white/95">
-          <div className="mx-auto flex max-w-4xl items-center justify-end gap-4 px-4 py-3">
+          <div className="mx-auto flex max-w-7xl items-center justify-end gap-4 px-4 py-3">
             {message && <p className={`min-w-0 flex-1 text-sm ${message.ok ? "text-gold-dark" : "text-rose"}`}>{message.text}</p>}
             <button type="button" onClick={save} disabled={saving} className={`${buttonClass} shrink-0 bg-wine px-6 py-2.5 text-ivory hover:bg-rose`}>
               {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Lưu

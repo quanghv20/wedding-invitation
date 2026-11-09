@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { connection } from "next/server";
 import { Invitation } from "@/components/Invitation";
 import { WeddingProvider } from "@/components/WeddingProvider";
+import { mainEventOf } from "@/config/wedding";
 import { getWeddingContent } from "@/lib/content";
+import { formatDate, formatTime } from "@/lib/format";
 
 /** Đọc lúc có khách truy cập (lúc build không có database); riêng bản tĩnh thì đọc lúc build */
 async function loadContent() {
@@ -11,13 +13,27 @@ async function loadContent() {
 }
 
 export async function generateMetadata(): Promise<Metadata> {
-  const { groom, bride, hero } = await loadContent();
-  const title = `${groom.name} & ${bride.name} — Thiệp mời cưới`;
-  const description = `Trân trọng kính mời bạn đến chung vui trong ngày trọng đại của ${groom.name} & ${bride.name}.`;
+  const content = await loadContent();
+  const { groom, bride, hero } = content;
+  const event = mainEventOf(content);
+  const title = `Thiệp cưới ${groom.name} & ${bride.name}`;
+  const description =
+    `Trân trọng kính mời bạn đến dự ${event.title.toLowerCase()} của chú rể ${groom.fullName} và cô dâu ${bride.fullName}, ` +
+    `${formatTime(event.start)} ${formatDate(event.start)}, tại ${event.venue}, ${event.address}.`;
   return {
     title,
     description,
-    openGraph: { title, description, type: "website", images: [{ url: hero.image, width: 1200, height: 630 }] },
+    alternates: { canonical: "/" },
+    openGraph: {
+      title,
+      description,
+      type: "website",
+      url: "/",
+      siteName: title,
+      locale: "vi_VN",
+      images: [{ url: hero.image, alt: title }],
+    },
+    twitter: { card: "summary_large_image", title, description, images: [hero.image] },
   };
 }
 

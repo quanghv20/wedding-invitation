@@ -13,9 +13,7 @@ import { Footer } from "./Footer";
 import { MusicPlayer } from "./MusicPlayer";
 import { Navigation, ScrollProgress } from "./Navigation";
 import { SmoothScroll } from "./SmoothScroll";
-import { GiftMascot } from "./GiftMascot";
-import { Petals } from "./effects/Petals";
-import { ClickHearts } from "./effects/ClickHearts";
+import { DeferredEffects } from "./effects/DeferredEffects";
 
 export function Invitation() {
   return (
@@ -23,12 +21,10 @@ export function Invitation() {
       <SmoothScroll />
 
       <MusicPlayer />
-      <ClickHearts />
 
-      <Petals />
       <ScrollProgress />
       <Navigation />
-      <GiftMascot />
+      <DeferredEffects />
 
       <main>
         <Hero />

@@ -76,7 +76,7 @@ export function GiftMascot() {
         aria-label="Gửi quà mừng cưới online"
         initial={{ opacity: 0, scale: 0, y: -40 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ delay: 1.4, type: "spring", stiffness: 180, damping: 12 }}
+        transition={{ type: "spring", stiffness: 180, damping: 12 }}
         whileHover={{ scale: 1.08 }}
         whileTap={{ scale: 0.92 }}
         className="flex cursor-pointer items-center"

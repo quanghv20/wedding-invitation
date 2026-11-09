@@ -1,32 +1,48 @@
 import { wedding, type WeddingContent } from "@/config/wedding";
 import { getValue, hasDatabase, setValue } from "./db";
+import { IMAGE_HOSTS, isAllowedImage } from "./images";
 import { clean } from "./store";
 
-/** Giữ nội dung vài giây để mỗi lượt xem không phải gọi database; lưu ở admin sẽ xóa ngay */
+/** Sau khoảng này thì nội dung được làm mới ngầm; khách vẫn nhận ngay bản đang giữ, không phải chờ database */
 const CACHE_MS = 30_000;
-const globalCache = globalThis as unknown as { __weddingContent?: { content: WeddingContent; at: number } };
+const globalCache = globalThis as unknown as {
+  __weddingContent?: { content: WeddingContent; at: number };
+  __weddingRefresh?: Promise<WeddingContent>;
+};
 
 export async function readStoredContent(): Promise<WeddingContent> {
   // ghép với mặc định để trường mới thêm trong code vẫn có giá trị với dữ liệu cũ
   return { ...wedding, ...(await getValue<Partial<WeddingContent>>("content")) };
 }
 
+/** Các lượt gọi cùng lúc dùng chung một truy vấn */
+function refreshContent() {
+  const startedAt = Date.now();
+  globalCache.__weddingRefresh ??= readStoredContent()
+    .then((content) => {
+      // admin vừa lưu trong lúc đang đọc thì giữ bản mới của admin
+      const current = globalCache.__weddingContent;
+      if (current && current.at > startedAt) return current.content;
+      globalCache.__weddingContent = { content, at: Date.now() };
+      return content;
+    })
+    .finally(() => {
+      globalCache.__weddingRefresh = undefined;
+    });
+  return globalCache.__weddingRefresh;
+}
+
 export async function getWeddingContent(): Promise<WeddingContent> {
   if (!hasDatabase()) return wedding;
 
   const cached = globalCache.__weddingContent;
-  if (cached && Date.now() - cached.at < CACHE_MS) return cached.content;
+  // Chưa có bản nào thì phải chờ, không rơi về nội dung mặc định: trong đó có số tài khoản mẫu
+  if (!cached) return refreshContent();
 
-  try {
-    const content = await readStoredContent();
-    globalCache.__weddingContent = { content, at: Date.now() };
-    return content;
-  } catch (error) {
-    // Không rơi về nội dung mặc định: trong đó có số tài khoản mẫu, khách có thể chuyển nhầm
-    if (!cached) throw error;
-    console.error("[content] database error, serving cached content", error);
-    return cached.content;
+  if (Date.now() - cached.at >= CACHE_MS) {
+    refreshContent().catch((error) => console.error("[content] database error, serving cached content", error));
   }
+  return cached.content;
 }
 
 export async function saveWeddingContent(content: WeddingContent) {
@@ -37,9 +53,6 @@ export async function saveWeddingContent(content: WeddingContent) {
 /** Lỗi nhập liệu, nội dung lỗi được hiển thị thẳng cho admin */
 export class ContentError extends Error {}
 
-/** next/image làm sập trang nếu gặp ảnh ngoài các host khai báo trong next.config.ts */
-const IMAGE_HOSTS = ["images.unsplash.com"];
-
 function required(value: unknown, label: string, max = 300) {
   const text = clean(value, max);
   if (!text) throw new ContentError(`${label}: chưa nhập`);
@@ -48,9 +61,7 @@ function required(value: unknown, label: string, max = 300) {
 
 function image(value: unknown, label: string) {
   const src = required(value, label, 1000);
-  if (/^\/[^/?]/.test(src)) return src;
-  const url = URL.canParse(src) ? new URL(src) : null;
-  if (url?.protocol === "https:" && IMAGE_HOSTS.includes(url.hostname)) return src;
+  if (isAllowedImage(src)) return src;
   throw new ContentError(`${label}: ảnh phải là đường dẫn trong site (/images/ten-anh.jpg) hoặc link từ ${IMAGE_HOSTS.join(", ")}`);
 }
 
