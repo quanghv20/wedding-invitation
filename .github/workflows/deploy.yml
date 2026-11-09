@@ -1,0 +1,19 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency: deploy
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Build and restart
+        working-directory: /home/ubuntu/my-app/wedding-invitation
+        run: |
+          git pull --ff-only
+          docker compose up -d --build --wait
+          docker image prune -f
