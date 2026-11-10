@@ -1,17 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, ExternalLink, Eye, EyeOff, KeyRound, Loader2, LogOut, Plus, Save, Trash2, Upload } from "lucide-react";
+import { ArrowDown, ArrowUp, DatabaseBackup, ExternalLink, Eye, EyeOff, KeyRound, Loader2, LogOut, Plus, Save, Trash2, Upload } from "lucide-react";
 import type { WeddingContent } from "@/config/wedding";
 import type { Rsvp } from "@/app/api/rsvp/route";
 import type { Wish } from "@/app/api/wishes/route";
 import { inviteeOf, type Guest } from "@/lib/guest";
+import { BackupManager } from "./BackupManager";
 import { GuestManager } from "./GuestManager";
 import { PREVIEW_READY, PREVIEW_SECTIONS, PREVIEW_UPDATE, type PreviewMessage, type PreviewSection } from "./previewProtocol";
 import { Section, buttonClass, inputClass } from "./ui";
 
 type Data = { content: WeddingContent; rsvp: Rsvp[]; wishes: Wish[]; guests: Guest[] };
-type Tab = "content" | "guests" | "rsvp" | "wishes" | "password";
+type Tab = "content" | "guests" | "rsvp" | "wishes" | "password" | "backup";
 
 
 function Field({
@@ -597,6 +598,13 @@ export function AdminApp() {
     }
   }, []);
 
+  /** Tải lại dữ liệu ngầm (sau khi khôi phục backup), không xóa màn hình đang xem */
+  const reload = useCallback(async () => {
+    const res = await fetch("/api/admin/data", { cache: "no-store" }).catch(() => null);
+    if (res?.status === 401) return setStatus("login");
+    if (res?.ok) setData(await res.json());
+  }, []);
+
   useEffect(() => {
     load();
   }, [load]);
@@ -678,6 +686,16 @@ export function AdminApp() {
             >
               <KeyRound className="size-4" />
             </button>
+            <button
+              type="button"
+              onClick={() => setTab("backup")}
+              aria-label="Sao lưu & khôi phục"
+              title="Sao lưu & khôi phục"
+              aria-pressed={tab === "backup"}
+              className={`cursor-pointer rounded-full p-2 transition hover:bg-blush/50 hover:text-wine ${tab === "backup" ? "bg-blush/50 text-wine" : "text-muted"}`}
+            >
+              <DatabaseBackup className="size-4" />
+            </button>
             <button type="button" onClick={logout} aria-label="Đăng xuất" className="cursor-pointer rounded-full p-2 text-muted transition hover:bg-blush/50 hover:text-wine">
               <LogOut className="size-4" />
             </button>
@@ -721,6 +739,7 @@ export function AdminApp() {
         {tab === "rsvp" && <RsvpList items={data.rsvp} invited={data.guests} />}
         {tab === "wishes" && <WishList items={data.wishes} />}
         {tab === "password" && <PasswordForm onUnauthorized={() => setStatus("login")} />}
+        {tab === "backup" && <BackupManager onUnauthorized={() => setStatus("login")} onRestored={reload} />}
       </main>
 
       {tab === "content" && (

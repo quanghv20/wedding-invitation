@@ -45,6 +45,11 @@ export async function getWeddingContent(): Promise<WeddingContent> {
   return cached.content;
 }
 
+/** Sau khi khôi phục backup: bỏ bản đang giữ để lần sau đọc lại từ database */
+export function clearContentCache() {
+  globalCache.__weddingContent = undefined;
+}
+
 export async function saveWeddingContent(content: WeddingContent) {
   await setValue("content", content);
   globalCache.__weddingContent = { content, at: Date.now() };

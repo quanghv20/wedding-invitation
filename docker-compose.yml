@@ -5,12 +5,8 @@ services:
     restart: unless-stopped
     ports:
       - "${APP_PORT:-3000}:3000"
-    environment:
-      DATABASE_URL: ${DATABASE_URL:-}
-      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
-      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
-      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
-      CLOUDINARY_FOLDER: ${CLOUDINARY_FOLDER:-}
+    # mọi biến trong .env (database, Cloudinary, SMTP, backup) được đưa vào container
+    env_file: .env
     volumes:
       - wedding-data:/app/data
     healthcheck:
