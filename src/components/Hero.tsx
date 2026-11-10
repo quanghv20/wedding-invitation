@@ -5,8 +5,9 @@ import { motion, type Variants } from "motion/react";
 import { CalendarPlus, Clock, Gift, MapPin, Navigation, Send } from "lucide-react";
 import { mainEventOf } from "@/config/wedding";
 import { dateParts, formatTime, googleCalendarUrl, mapsUrl, weekdayName } from "@/lib/format";
-import { useCountdown, useGuestName } from "@/lib/hooks";
-import { useWedding } from "./WeddingProvider";
+import { hostsOf, inviteeOf } from "@/lib/guest";
+import { useCountdown } from "@/lib/hooks";
+import { useGuest, useWedding } from "./WeddingProvider";
 import { VibrantBackground } from "./effects/VibrantBackground";
 import { FloralCorner } from "./ui/Ornament";
 import { goToGiftQr, scrollToId } from "./SmoothScroll";
@@ -117,7 +118,7 @@ function Schedule() {
 }
 
 export function Hero() {
-  const guest = useGuestName();
+  const guest = useGuest();
   const wedding = useWedding();
   const mainEvent = mainEventOf(wedding);
   const place = `${mainEvent.venue}, ${mainEvent.address}`;
@@ -181,12 +182,20 @@ export function Hero() {
           <motion.p variants={item} className="text-[11px] font-semibold tracking-[0.45em] text-[#e0587f] uppercase sm:text-xs">
             Trân trọng kính mời
           </motion.p>
-          <motion.p variants={item} className="mt-1 font-script text-3xl text-wine sm:text-4xl">
-            {guest || "Quý khách"}
+          <motion.p variants={item} className="mx-auto mt-1 max-w-md font-script text-3xl leading-tight text-balance text-wine sm:text-4xl">
+            {inviteeOf(guest)}
           </motion.p>
           <motion.p variants={item} className="mt-1 font-serif text-base text-ink/70 italic">
-            tới dự lễ thành hôn của chúng tôi
+            tới dự lễ thành hôn của {hostsOf(guest)}
           </motion.p>
+          {guest?.message && (
+            <motion.p
+              variants={item}
+              className="mx-auto mt-3 max-w-sm rounded-2xl bg-white/70 px-4 py-2.5 font-serif text-base leading-relaxed text-ink/80 italic shadow-sm ring-1 ring-white"
+            >
+              “{guest.message}”
+            </motion.p>
+          )}
 
           <motion.h1
             variants={item}

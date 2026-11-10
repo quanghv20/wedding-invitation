@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isGuestId } from "@/lib/guest";
 import { appendToCollection, clean } from "@/lib/store";
 
 export type Rsvp = {
@@ -9,6 +10,8 @@ export type Rsvp = {
   guests: number;
   side: string;
   note: string;
+  /** Có khi khách gửi từ link mời riêng */
+  guestId?: string;
   createdAt: string;
 };
 
@@ -27,6 +30,7 @@ export async function POST(request: Request) {
     guests: Math.min(Math.max(Number(body?.guests) || 1, 1), 10),
     side: clean(body?.side, 20),
     note: clean(body?.note, 500),
+    ...(isGuestId(body?.guestId) && { guestId: body.guestId }),
     createdAt: new Date().toISOString(),
   };
 

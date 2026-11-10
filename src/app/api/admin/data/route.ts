@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { isAdmin } from "@/lib/auth";
 import { ContentError, parseContent, readStoredContent, saveWeddingContent } from "@/lib/content";
 import { hasDatabase } from "@/lib/db";
+import { readGuests } from "@/lib/guestStore";
 import { readCollection } from "@/lib/store";
 import type { Rsvp } from "../../rsvp/route";
 import type { Wish } from "../../wishes/route";
@@ -14,12 +15,13 @@ async function authorized(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   if (!(await authorized(request))) return unauthorized();
-  const [content, rsvp, wishes] = await Promise.all([
+  const [content, rsvp, wishes, guests] = await Promise.all([
     readStoredContent(),
     readCollection<Rsvp>("rsvp"),
     readCollection<Wish>("wishes"),
+    readGuests(),
   ]);
-  return NextResponse.json({ content, rsvp, wishes });
+  return NextResponse.json({ content, rsvp, wishes, guests });
 }
 
 export async function PUT(request: NextRequest) {

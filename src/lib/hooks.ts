@@ -2,16 +2,6 @@
 
 import { useEffect, useState } from "react";
 
-/** Tên khách mời lấy từ link: /?to=Anh%20Nam */
-export function useGuestName() {
-  const [guest, setGuest] = useState("");
-  useEffect(() => {
-    const to = new URLSearchParams(window.location.search).get("to");
-    if (to) setGuest(to);
-  }, []);
-  return guest;
-}
-
 function getRemaining(target: number) {
   const diff = Math.max(target - Date.now(), 0);
   return {

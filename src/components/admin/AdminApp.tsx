@@ -1,18 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, ExternalLink, KeyRound, Loader2, LogOut, Plus, Save, Trash2, Upload } from "lucide-react";
+import { ArrowDown, ArrowUp, ExternalLink, Eye, EyeOff, KeyRound, Loader2, LogOut, Plus, Save, Trash2, Upload } from "lucide-react";
 import type { WeddingContent } from "@/config/wedding";
 import type { Rsvp } from "@/app/api/rsvp/route";
 import type { Wish } from "@/app/api/wishes/route";
+import { inviteeOf, type Guest } from "@/lib/guest";
+import { GuestManager } from "./GuestManager";
 import { PREVIEW_READY, PREVIEW_SECTIONS, PREVIEW_UPDATE, type PreviewMessage, type PreviewSection } from "./previewProtocol";
+import { Section, buttonClass, inputClass } from "./ui";
 
-type Data = { content: WeddingContent; rsvp: Rsvp[]; wishes: Wish[] };
-type Tab = "content" | "rsvp" | "wishes" | "password";
+type Data = { content: WeddingContent; rsvp: Rsvp[]; wishes: Wish[]; guests: Guest[] };
+type Tab = "content" | "guests" | "rsvp" | "wishes" | "password";
 
-const inputClass =
-  "w-full rounded-lg border border-gold/30 bg-white px-3 py-2 text-sm text-ink outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/20";
-const buttonClass = "inline-flex cursor-pointer items-center justify-center gap-2 rounded-full text-sm font-medium transition disabled:opacity-60";
 
 function Field({
   label,
@@ -112,15 +112,6 @@ function DateField({ label, value, onChange }: { label: string; value: string; o
         className={inputClass}
       />
     </label>
-  );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="rounded-2xl border border-gold/20 bg-white/80 p-5 md:p-6">
-      <h2 className="mb-4 font-serif text-2xl font-semibold text-wine">{title}</h2>
-      {children}
-    </section>
   );
 }
 
@@ -415,7 +406,8 @@ function ContentForm({
 const formatDate =(iso: string) => new Date(iso).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" });
 const SIDE_LABEL: Record<string, string> = { groom: "Nhà trai", bride: "Nhà gái" };
 
-function RsvpList({ items }: { items: Rsvp[] }) {
+function RsvpList({ items, invited }: { items: Rsvp[]; invited: Guest[] }) {
+  const guestById = new Map(invited.map((g) => [g.id, g]));
   const coming = items.filter((r) => r.attending);
   const guests = coming.reduce((sum, r) => sum + r.guests, 0);
   return (
@@ -437,7 +429,12 @@ function RsvpList({ items }: { items: Rsvp[] }) {
           <tbody>
             {items.map((r) => (
               <tr key={r.id} className="border-b border-gold/10 align-top">
-                <td className="py-2 pr-4 font-medium text-ink">{r.name}</td>
+                <td className="py-2 pr-4 font-medium text-ink">
+                  {r.name}
+                  {r.guestId && guestById.has(r.guestId) && (
+                    <span className="block text-xs font-normal text-muted">Link mời: {inviteeOf(guestById.get(r.guestId))}</span>
+                  )}
+                </td>
                 <td className="py-2 pr-4">{r.phone}</td>
                 <td className="py-2 pr-4">{r.attending ? "Có" : "Không"}</td>
                 <td className="py-2 pr-4">{r.attending ? r.guests : ""}</td>
@@ -469,6 +466,26 @@ function WishList({ items }: { items: Wish[] }) {
   );
 }
 
+/** Ô mật khẩu có nút con mắt để hiện / ẩn */
+function PasswordInput(props: { name: string; autoComplete: string; minLength?: number; placeholder?: string }) {
+  const [visible, setVisible] = useState(false);
+  const Icon = visible ? EyeOff : Eye;
+  return (
+    <div className="relative">
+      <input {...props} type={visible ? "text" : "password"} required className={`${inputClass} pr-10`} />
+      <button
+        type="button"
+        onClick={() => setVisible((v) => !v)}
+        aria-label={visible ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+        aria-pressed={visible}
+        className="absolute inset-y-0 right-0 flex w-10 cursor-pointer items-center justify-center text-muted transition hover:text-wine"
+      >
+        <Icon className="size-4" />
+      </button>
+    </div>
+  );
+}
+
 function LoginForm({ onLoggedIn }: { onLoggedIn: () => void }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -497,7 +514,7 @@ function LoginForm({ onLoggedIn }: { onLoggedIn: () => void }) {
       <form onSubmit={onSubmit} className="w-full max-w-sm space-y-4 rounded-2xl border border-gold/20 bg-white p-8 shadow-lg">
         <h1 className="text-center font-serif text-3xl font-semibold text-wine">Quản trị thiệp</h1>
         <input name="username" required autoComplete="username" placeholder="Tài khoản" className={inputClass} />
-        <input name="password" type="password" required autoComplete="current-password" placeholder="Mật khẩu" className={inputClass} />
+        <PasswordInput name="password" autoComplete="current-password" placeholder="Mật khẩu" />
         {error && <p className="text-sm text-rose">{error}</p>}
         <button disabled={busy} className={`${buttonClass} w-full bg-wine px-4 py-2.5 text-ivory hover:bg-rose`}>
           {busy && <Loader2 className="size-4 animate-spin" />} Đăng nhập
@@ -547,7 +564,7 @@ function PasswordForm({ onUnauthorized }: { onUnauthorized: () => void }) {
         ].map((f) => (
           <label key={f.name} className="block">
             <span className="mb-1 block text-xs font-medium text-muted">{f.label}</span>
-            <input type="password" required name={f.name} autoComplete={f.autoComplete} minLength={f.minLength} className={inputClass} />
+            <PasswordInput name={f.name} autoComplete={f.autoComplete} minLength={f.minLength} />
           </label>
         ))}
         {message && <p className={`text-sm ${message.ok ? "text-gold-dark" : "text-rose"}`}>{message.text}</p>}
@@ -626,6 +643,7 @@ export function AdminApp() {
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "content", label: "Nội dung thiệp" },
+    { id: "guests", label: `Khách mời (${data.guests.length})` },
     { id: "rsvp", label: `Xác nhận (${data.rsvp.length})` },
     { id: "wishes", label: `Lời chúc (${data.wishes.length})` },
   ];
@@ -691,7 +709,16 @@ export function AdminApp() {
             <PhonePreview content={data.content} section={section} />
           </div>
         )}
-        {tab === "rsvp" && <RsvpList items={data.rsvp} />}
+        {tab === "guests" && (
+          <GuestManager
+            guests={data.guests}
+            rsvp={data.rsvp}
+            content={data.content}
+            onChange={(guests) => setData({ ...data, guests })}
+            onUnauthorized={() => setStatus("login")}
+          />
+        )}
+        {tab === "rsvp" && <RsvpList items={data.rsvp} invited={data.guests} />}
         {tab === "wishes" && <WishList items={data.wishes} />}
         {tab === "password" && <PasswordForm onUnauthorized={() => setStatus("login")} />}
       </main>

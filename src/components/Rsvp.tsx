@@ -5,7 +5,7 @@ import Image from "next/image";
 import { AnimatePresence, motion, useScroll, useTransform } from "motion/react";
 import confetti from "canvas-confetti";
 import { Check, ChevronDown, Frown, Loader2, PartyPopper, Send } from "lucide-react";
-import { useWedding } from "./WeddingProvider";
+import { useGuest, useWedding } from "./WeddingProvider";
 import { SectionTitle } from "./ui/SectionTitle";
 import { Reveal } from "./ui/Reveal";
 
@@ -34,6 +34,7 @@ function fireConfetti() {
 
 export function Rsvp() {
   const wedding = useWedding();
+  const guest = useGuest();
   const ref = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "end start"] });
   const bgY = useTransform(scrollYProgress, [0, 1], ["-15%", "15%"]);
@@ -50,7 +51,7 @@ export function Rsvp() {
       const res = await fetch("/api/rsvp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, attending }),
+        body: JSON.stringify({ ...data, attending, guestId: guest?.id }),
       });
       if (!res.ok) throw new Error((await res.json()).error ?? "Có lỗi xảy ra");
       setStatus("done");
@@ -104,7 +105,7 @@ export function Rsvp() {
               ) : (
                 <motion.form key="form" exit={{ opacity: 0, y: -20 }} onSubmit={onSubmit} className="space-y-4">
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <input name="name" required placeholder="Họ và tên *" className={inputClass} />
+                    <input name="name" required defaultValue={guest?.name} placeholder="Họ và tên *" className={inputClass} />
                     <input name="phone" type="tel" placeholder="Số điện thoại" className={inputClass} />
                   </div>
 
@@ -145,7 +146,7 @@ export function Rsvp() {
                             </option>
                           ))}
                         </SelectField>
-                        <SelectField name="side" defaultValue="">
+                        <SelectField name="side" defaultValue={guest?.side ?? ""}>
                           <option value="" disabled>
                             Bạn là khách của...
                           </option>

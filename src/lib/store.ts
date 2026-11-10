@@ -1,6 +1,6 @@
 import { promises as fs } from "fs";
 import path from "path";
-import { getValue, hasDatabase, prependValue } from "./db";
+import { getValue, hasDatabase, prependValue, setValue } from "./db";
 
 /**
  * Lưu trữ RSVP & lời chúc.
@@ -33,11 +33,10 @@ export async function readCollection<T>(name: string, fallback: T[] = []): Promi
   }
 }
 
-export async function appendToCollection<T>(name: string, item: T, fallback: T[] = []) {
-  if (hasDatabase()) return prependValue(name, item, fallback);
+/** Ghi đè cả danh sách (dùng cho sửa / xóa) */
+export async function writeCollection<T>(name: string, items: T[]) {
+  if (hasDatabase()) return setValue(name, items);
 
-  const items = await readCollection<T>(name, fallback);
-  items.unshift(item);
   const store = await blobStore();
   if (store) {
     await store.setJSON(name, items);
@@ -45,6 +44,14 @@ export async function appendToCollection<T>(name: string, item: T, fallback: T[]
     await fs.mkdir(DATA_DIR, { recursive: true });
     await fs.writeFile(path.join(DATA_DIR, `${name}.json`), JSON.stringify(items, null, 2), "utf8");
   }
+}
+
+export async function appendToCollection<T>(name: string, item: T, fallback: T[] = []) {
+  if (hasDatabase()) return prependValue(name, item, fallback);
+
+  const items = await readCollection<T>(name, fallback);
+  items.unshift(item);
+  await writeCollection(name, items);
   return items;
 }
 
