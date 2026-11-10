@@ -23,7 +23,8 @@ Toàn bộ nội dung (tên, ngày giờ, địa điểm, ảnh, câu chuyện, 
 
 Nội dung, tài khoản admin, RSVP và lời chúc nằm trong bảng `wedding_data` (PostgreSQL, `key` → `value` jsonb).
 
-- `DATABASE_URL`: đặt trong `.env.local` khi chạy trên máy, trong `.env` cạnh `docker-compose.yml` khi chạy Docker.
+- Biến môi trường (`DATABASE_URL`, `CLOUDINARY_*`) nằm trong file `.env` đã commit sẵn trong repo; chạy trên máy hay Docker đều đọc file này.
+- Ảnh tải lên từ trang admin được lưu trên Cloudinary (thư mục `CLOUDINARY_FOLDER`).
 - `npm run db:setup`: tạo bảng, nội dung ban đầu và tài khoản admin (mật khẩu in ra một lần).
 - `npm run db:setup -- <tài-khoản> <mật-khẩu>`: đổi tài khoản và mật khẩu admin.
 

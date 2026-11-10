@@ -13,6 +13,7 @@ const nextConfig: NextConfig = {
     unoptimized: staticExport,
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" },
+      { protocol: "https", hostname: "res.cloudinary.com" },
       { protocol: "https", hostname: "img.vietqr.io" },
     ],
   },

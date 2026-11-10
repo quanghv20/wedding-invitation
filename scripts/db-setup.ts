@@ -10,7 +10,7 @@ import { hashPassword, type AdminAccount } from "../src/lib/auth";
 import { db, getValue, setValue } from "../src/lib/db";
 
 async function main() {
-  if (!process.env.DATABASE_URL) throw new Error("Thiếu DATABASE_URL (đặt trong .env.local)");
+  if (!process.env.DATABASE_URL) throw new Error("Thiếu DATABASE_URL (đặt trong .env)");
 
   await db().query(`
     CREATE TABLE IF NOT EXISTS wedding_data (

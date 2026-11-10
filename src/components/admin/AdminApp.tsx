@@ -1,14 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, ExternalLink, Loader2, LogOut, Plus, Save, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ExternalLink, KeyRound, Loader2, LogOut, Plus, Save, Trash2, Upload } from "lucide-react";
 import type { WeddingContent } from "@/config/wedding";
 import type { Rsvp } from "@/app/api/rsvp/route";
 import type { Wish } from "@/app/api/wishes/route";
 import { PREVIEW_READY, PREVIEW_SECTIONS, PREVIEW_UPDATE, type PreviewMessage, type PreviewSection } from "./previewProtocol";
 
 type Data = { content: WeddingContent; rsvp: Rsvp[]; wishes: Wish[] };
-type Tab = "content" | "rsvp" | "wishes";
+type Tab = "content" | "rsvp" | "wishes" | "password";
 
 const inputClass =
   "w-full rounded-lg border border-gold/30 bg-white px-3 py-2 text-sm text-ink outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/20";
@@ -42,6 +42,51 @@ function Field({
   );
 }
 
+/** Đưa ảnh lên Cloudinary qua /api/admin/uploads, trả về link ảnh */
+async function uploadFile(file: File) {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch("/api/admin/uploads", { method: "POST", body: form });
+  const body = await res.json().catch(() => null);
+  if (!res.ok || !body?.url) throw new Error(body?.error ?? "Không tải ảnh lên được");
+  return body.url as string;
+}
+
+const IMAGE_ACCEPT = "image/jpeg,image/png,image/webp,image/gif";
+
+/** Nút chọn ảnh từ máy; multiple thì chọn được nhiều ảnh một lúc */
+function UploadButton({ onUploaded, multiple, label = "Tải ảnh" }: { onUploaded: (urls: string[]) => void; multiple?: boolean; label?: string }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const onPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (!files.length) return;
+    setBusy(true);
+    setError("");
+    try {
+      onUploaded(await Promise.all(files.map(uploadFile)));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Không tải ảnh lên được");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <span className="inline-flex flex-col">
+      <label
+        className={`${buttonClass} h-[38px] shrink-0 border border-gold/40 px-3 text-wine hover:bg-blush/40 ${busy ? "pointer-events-none opacity-60" : ""}`}
+      >
+        {busy ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />} {label}
+        <input type="file" accept={IMAGE_ACCEPT} multiple={multiple} onChange={onPick} disabled={busy} className="sr-only" />
+      </label>
+      {error && <span className="mt-1 text-xs text-rose">{error}</span>}
+    </span>
+  );
+}
+
 function ImageField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
   return (
     <div className="flex items-end gap-3 sm:col-span-2">
@@ -50,6 +95,7 @@ function ImageField({ label, value, onChange }: { label: string; value: string; 
       </div>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       {value && <img src={value} alt="" className="size-[38px] shrink-0 rounded-lg object-cover ring-1 ring-gold/30" />}
+      <UploadButton onUploaded={([url]) => onChange(url)} />
     </div>
   );
 }
@@ -310,12 +356,19 @@ function ContentForm({
         <Section title="Album">
           <Field
             label="Album ảnh"
-            hint="Mỗi dòng một ảnh: /images/ten-anh.jpg (trong thư mục public) hoặc link images.unsplash.com"
+            hint="Mỗi dòng một ảnh: /images/ten-anh.jpg (trong thư mục public), link images.unsplash.com hoặc ảnh tải lên"
             multiline
             rows={14}
             value={content.gallery.join("\n")}
             onChange={(value) => update({ gallery: value.split("\n") })}
           />
+          <div className="mt-3">
+            <UploadButton
+              multiple
+              label="Tải thêm ảnh vào album"
+              onUploaded={(urls) => update({ gallery: [...content.gallery.filter((line) => line.trim()), ...urls] })}
+            />
+          </div>
         </Section>
       )}
 
@@ -454,6 +507,58 @@ function LoginForm({ onLoggedIn }: { onLoggedIn: () => void }) {
   );
 }
 
+function PasswordForm({ onUnauthorized }: { onUnauthorized: () => void }) {
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const values = Object.fromEntries(new FormData(form));
+    if (values.newPassword !== values.confirmPassword) {
+      return setMessage({ ok: false, text: "Mật khẩu xác nhận không khớp" });
+    }
+    setBusy(true);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/admin/session", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
+      });
+      if (res.status === 401) return onUnauthorized();
+      if (!res.ok) return setMessage({ ok: false, text: (await res.json().catch(() => null))?.error ?? "Có lỗi xảy ra" });
+      form.reset();
+      setMessage({ ok: true, text: "Đã đổi mật khẩu" });
+    } catch {
+      setMessage({ ok: false, text: "Không kết nối được tới server" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Section title="Đổi mật khẩu">
+      <form onSubmit={onSubmit} className="max-w-sm space-y-4">
+        {[
+          { name: "currentPassword", label: "Mật khẩu cũ", autoComplete: "current-password", minLength: undefined },
+          { name: "newPassword", label: "Mật khẩu mới (ít nhất 8 ký tự)", autoComplete: "new-password", minLength: 8 },
+          { name: "confirmPassword", label: "Xác nhận mật khẩu mới", autoComplete: "new-password", minLength: 8 },
+        ].map((f) => (
+          <label key={f.name} className="block">
+            <span className="mb-1 block text-xs font-medium text-muted">{f.label}</span>
+            <input type="password" required name={f.name} autoComplete={f.autoComplete} minLength={f.minLength} className={inputClass} />
+          </label>
+        ))}
+        {message && <p className={`text-sm ${message.ok ? "text-gold-dark" : "text-rose"}`}>{message.text}</p>}
+        <button disabled={busy} className={`${buttonClass} bg-wine px-6 py-2.5 text-ivory hover:bg-rose`}>
+          {busy && <Loader2 className="size-4 animate-spin" />} Đổi mật khẩu
+        </button>
+      </form>
+    </Section>
+  );
+}
+
 export function AdminApp() {
   const [status, setStatus] = useState<"loading" | "login" | "ready" | "error">("loading");
   const [data, setData] = useState<Data | null>(null);
@@ -546,6 +651,15 @@ export function AdminApp() {
             <a href="/" target="_blank" rel="noreferrer" aria-label="Xem thiệp" className="rounded-full p-2 text-muted transition hover:bg-blush/50 hover:text-wine">
               <ExternalLink className="size-4" />
             </a>
+            <button
+              type="button"
+              onClick={() => setTab("password")}
+              aria-label="Đổi mật khẩu"
+              aria-pressed={tab === "password"}
+              className={`cursor-pointer rounded-full p-2 transition hover:bg-blush/50 hover:text-wine ${tab === "password" ? "bg-blush/50 text-wine" : "text-muted"}`}
+            >
+              <KeyRound className="size-4" />
+            </button>
             <button type="button" onClick={logout} aria-label="Đăng xuất" className="cursor-pointer rounded-full p-2 text-muted transition hover:bg-blush/50 hover:text-wine">
               <LogOut className="size-4" />
             </button>
@@ -579,6 +693,7 @@ export function AdminApp() {
         )}
         {tab === "rsvp" && <RsvpList items={data.rsvp} />}
         {tab === "wishes" && <WishList items={data.wishes} />}
+        {tab === "password" && <PasswordForm onUnauthorized={() => setStatus("login")} />}
       </main>
 
       {tab === "content" && (

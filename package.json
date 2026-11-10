@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "db:setup": "tsx --env-file=.env.local scripts/db-setup.ts"
+    "db:setup": "tsx --env-file=.env scripts/db-setup.ts"
   },
   "dependencies": {
     "@netlify/blobs": "^10.7.13",

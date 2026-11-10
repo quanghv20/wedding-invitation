@@ -24,13 +24,15 @@ function timeAgo(iso: string) {
 
 export function Wishes() {
   const [wishes, setWishes] = useState<Wish[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [sending, setSending] = useState(false);
 
   useEffect(() => {
     fetch("/api/wishes")
       .then((r) => r.json())
-      .then(setWishes)
-      .catch(() => {});
+      .then((data) => Array.isArray(data) && setWishes(data))
+      .catch(() => {})
+      .finally(() => setLoaded(true));
   }, []);
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -94,6 +96,11 @@ export function Wishes() {
             data-lenis-prevent
             className="max-h-[560px] space-y-4 overflow-y-auto pr-2 [mask-image:linear-gradient(to_bottom,black_85%,transparent)]"
           >
+            {loaded && !wishes.length && (
+              <p className="rounded-2xl border border-dashed border-gold/30 bg-white/60 p-8 text-center font-serif text-lg text-muted">
+                Chưa có lời chúc nào — hãy là người đầu tiên gửi lời chúc nhé!
+              </p>
+            )}
             <AnimatePresence initial={false}>
               {wishes.map((w, i) => (
                 <motion.article

@@ -12,9 +12,8 @@ import { Pool } from "pg";
 // Next.js nạp lại module khi dev nên pool được giữ trên globalThis để không mở thêm kết nối
 const globalDb = globalThis as unknown as { __weddingPool?: Pool };
 
-/** Không có biến môi trường DATABASE_URL thì dùng database thật này */
-const DEFAULT_DATABASE_URL = "postgresql://neondb_owner:npg_iu6cWdEom1Dv@ep-snowy-art-aoloplns-pooler.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=verify-full&channel_binding=require";
-const databaseUrl = () => process.env.DATABASE_URL || DEFAULT_DATABASE_URL;
+/** Đặt trong file .env */
+const databaseUrl = () => process.env.DATABASE_URL;
 
 export const hasDatabase = () => !!databaseUrl();
 

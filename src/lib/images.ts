@@ -1,5 +1,5 @@
 /** next/image làm sập trang nếu gặp ảnh ngoài các host khai báo trong next.config.ts */
-export const IMAGE_HOSTS = ["images.unsplash.com"];
+export const IMAGE_HOSTS = ["images.unsplash.com", "res.cloudinary.com"];
 
 /** Ảnh trong site (/images/ten-anh.jpg) hoặc link https từ host được phép */
 export function isAllowedImage(src: string) {
