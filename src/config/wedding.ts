@@ -112,21 +112,21 @@ export const wedding = {
   /** Thứ tự toàn bộ ảnh trong album ở trang admin (gồm cả ảnh đang ẩn); ảnh chưa có ở đây xếp cuối */
   galleryOrder: GALLERY.map(album),
 
-  /** Mã ngân hàng theo chuẩn VietQR (VCB, TCB, MB, ACB, BIDV, ...). TODO: sửa STK thật */
+  /** Mã ngân hàng theo chuẩn VietQR (VCB, TCB, MB, ACB, BIDV, PGB...) */
   gifts: [
     {
       label: "Mừng cưới chú rể",
-      bankId: "VCB",
-      bankName: "Vietcombank",
-      accountNo: "0123456789",
-      accountName: "VUONG TRUONG",
+      bankId: "PGB",
+      bankName: "PGBank",
+      accountNo: "8787878787877",
+      accountName: "VƯƠNG VĂN TRƯỜNG",
     },
     {
       label: "Mừng cưới cô dâu",
       bankId: "TCB",
       bankName: "Techcombank",
-      accountNo: "1903456789012",
-      accountName: "XUAN HAI",
+      accountNo: "19036630783017",
+      accountName: "NGUYỄN THỊ MAI",
     },
   ],
 
