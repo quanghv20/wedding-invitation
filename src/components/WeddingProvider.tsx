@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext } from "react";
-import { placesFor, type Side, type WeddingContent } from "@/config/wedding";
+import { allEventPlaces, eventPlaces, type Side, type WeddingContent, type WeddingEvent } from "@/config/wedding";
 import type { Guest } from "@/lib/guest";
 
 const WeddingContext = createContext<WeddingContent | null>(null);
@@ -54,5 +54,8 @@ export function useFullAlbum() {
   return album && album.length > gallery.length ? album : gallery;
 }
 
-/** Địa điểm cần hiện cho khách đang xem: một bên, hoặc cả hai */
-export const usePlaces = () => placesFor(useWedding(), useSide());
+/** Mọi địa điểm khách đang xem sẽ tới (qua tất cả sự kiện): một bên, hoặc cả hai */
+export const usePlaces = () => allEventPlaces(useWedding(), useSide());
+
+/** Địa điểm của một sự kiện với khách đang xem */
+export const useEventPlaces = (event: WeddingEvent) => eventPlaces(useWedding(), event, useSide());

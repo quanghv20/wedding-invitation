@@ -47,7 +47,10 @@ export const wedding = {
     image: album("VYK04563-"),
   },
 
-  /** `main: true` là sự kiện được hiển thị nổi bật trên trang Home */
+  /**
+   * `main: true` là sự kiện được hiển thị nổi bật trên trang Home.
+   * `place`: "guest" là địa chỉ theo bên của khách; "groom" / "bride" là luôn ở nhà trai / nhà gái.
+   */
   events: [
     {
       title: "Tiệc Chung Vui",
@@ -56,6 +59,7 @@ export const wedding = {
       end: "2026-12-05T21:00:00+07:00",
       image: album("VYK04805"),
       main: false,
+      place: "guest" as EventPlace,
     },
     {
       title: "Tiệc Cưới",
@@ -64,6 +68,7 @@ export const wedding = {
       end: "2026-12-06T11:00:00+07:00",
       image: album("VYK04347"),
       main: false,
+      place: "guest" as EventPlace,
     },
     {
       title: "Lễ Thành Hôn",
@@ -72,12 +77,12 @@ export const wedding = {
       end: "2026-12-06T12:00:00+07:00",
       image: album("VYK04819"),
       main: true,
+      place: "groom" as EventPlace,
     },
   ],
 
   /**
-   * Địa điểm của từng bên: các sự kiện dùng chung giờ, chỉ địa chỉ khác nhau.
-   * Thiệp hiện địa chỉ theo ?side=groom / ?side=bride trên link, hoặc theo bên của khách
+   * Địa điểm của từng bên. Sự kiện có `place: "guest"` thì thiệp hiện địa chỉ theo ?side=groom / ?side=bride trên link, hoặc theo bên của khách
    * trong link mời riêng; không xác định được bên thì hiện cả hai.
    */
   places: {
@@ -139,14 +144,33 @@ export const wedding = {
 export type WeddingContent = typeof wedding;
 export type WeddingEvent = WeddingContent["events"][number];
 
-export type Side = keyof WeddingContent["places"];
+export type Side = "groom" | "bride";
+/** Địa điểm của một sự kiện: theo bên của khách, hoặc cố định một bên */
+export type EventPlace = "guest" | Side;
 export type Place = WeddingContent["places"][Side] & { side: Side; label: string };
 
 export const SIDE_LABEL: Record<Side, string> = { groom: "Nhà trai", bride: "Nhà gái" };
+export const EVENT_PLACES: EventPlace[] = ["guest", "groom", "bride"];
+export const EVENT_PLACE_LABEL: Record<EventPlace, string> = {
+  guest: "Theo bên của khách",
+  groom: "Luôn tại nhà trai",
+  bride: "Luôn tại nhà gái",
+};
 
 /** Địa điểm cần hiện: một bên nếu biết khách thuộc bên nào, không thì cả hai */
 export const placesFor = (content: WeddingContent, side: Side | null): Place[] =>
   (side ? [side] : (["groom", "bride"] as Side[])).map((s) => ({ ...content.places[s], side: s, label: SIDE_LABEL[s] }));
+
+/** Địa điểm của một sự kiện với khách đang xem */
+export const eventPlaces = (content: WeddingContent, event: WeddingEvent, side: Side | null): Place[] =>
+  placesFor(content, event.place === "guest" ? side : event.place);
+
+/** Mọi địa điểm khách đang xem sẽ tới, theo thứ tự sự kiện (không trùng) */
+export const allEventPlaces = (content: WeddingContent, side: Side | null): Place[] => {
+  const seen = new Map<Side, Place>();
+  for (const event of content.events) for (const p of eventPlaces(content, event, side)) if (!seen.has(p.side)) seen.set(p.side, p);
+  return [...seen.values()];
+};
 
 /** "Tư gia nhà trai, 139 Lai Cách..." — dùng cho lịch và chỉ đường */
 export const placeText = (place: Pick<Place, "venue" | "address">) => `${place.venue}, ${place.address}`;

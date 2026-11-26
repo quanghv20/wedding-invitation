@@ -5,14 +5,14 @@ import { motion } from "motion/react";
 import { CalendarPlus, Clock, MapPin, Navigation } from "lucide-react";
 import { locationText, placeText, type WeddingEvent } from "@/config/wedding";
 import { dateParts, formatTime, googleCalendarUrl, mapsEmbedUrl, mapsUrl, weekdayName } from "@/lib/format";
-import { usePlaces, useWedding } from "./WeddingProvider";
+import { useEventPlaces, usePlaces, useWedding } from "./WeddingProvider";
 import { Reveal } from "./ui/Reveal";
 import { SectionTitle } from "./ui/SectionTitle";
 import { TiltCard } from "./ui/TiltCard";
 
 function EventCard({ event, index }: { event: WeddingEvent; index: number }) {
   const wedding = useWedding();
-  const places = usePlaces();
+  const places = useEventPlaces(event);
   const single = places.length === 1;
   const d = dateParts(event.start);
   const calendarUrl = googleCalendarUrl({

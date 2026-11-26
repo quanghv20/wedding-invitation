@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { connection } from "next/server";
 import { Invitation } from "@/components/Invitation";
 import { WeddingProvider } from "@/components/WeddingProvider";
-import { locationText, mainEventOf, placesFor, type Side } from "@/config/wedding";
+import { eventPlaces, locationText, mainEventOf, type Side } from "@/config/wedding";
 import { listAlbum } from "@/lib/albums";
 import { getWeddingContent } from "@/lib/content";
 import { fullAlbum } from "@/lib/images";
@@ -55,7 +55,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   const { groom, bride, hero } = content;
   const event = mainEventOf(content);
   const title = `Thiệp cưới ${groom.name} & ${bride.name}`;
-  const where = locationText(placesFor(content, side));
+  const where = locationText(eventPlaces(content, event, side));
   // link gửi qua Zalo / Messenger hiện luôn tên người được mời trong phần xem trước
   const description =
     `Trân trọng kính mời ${guest ? inviteeOf(guest) : "bạn"} đến dự ${event.title.toLowerCase()} của chú rể ${groom.fullName} và cô dâu ${bride.fullName}, ` +

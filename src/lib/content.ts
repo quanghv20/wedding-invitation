@@ -1,4 +1,4 @@
-import { wedding, type WeddingContent } from "@/config/wedding";
+import { EVENT_PLACES, wedding, type WeddingContent } from "@/config/wedding";
 import { listAlbum } from "./albums";
 import { getValue, hasDatabase, setValue } from "./db";
 import { isAlbumImage } from "./images";
@@ -37,12 +37,22 @@ function withAlbumImages(input: Record<string, unknown>, album: Set<string>): Re
     hero: { image: fix(obj(input.hero).image, wedding.hero.image) },
     groom: { ...obj(input.groom), photo: fix(obj(input.groom).photo, wedding.groom.photo) },
     bride: { ...obj(input.bride), photo: fix(obj(input.bride).photo, wedding.bride.photo) },
-    events: items(input.events, wedding.events),
+    events: withEventPlaces(items(input.events, wedding.events)),
     story: items(input.story, wedding.story),
     footerImage: fix(input.footerImage, wedding.footerImage),
     // album trống thì thiệp trông như lỗi: dùng album mặc định
     ...(gallery.length ? {} : { gallery: wedding.gallery, galleryOrder: wedding.galleryOrder }),
   };
+}
+
+/** Sự kiện lưu từ trước khi có trường `place`: lấy theo sự kiện mặc định cùng tên (vd Lễ Thành Hôn ở nhà trai) */
+function withEventPlaces(events: unknown) {
+  if (!Array.isArray(events)) return events;
+  return events.map((e) => {
+    if (!e || typeof e !== "object" || "place" in e) return e;
+    const fallback = wedding.events.find((d) => d.title === (e as { title?: unknown }).title);
+    return { ...e, place: fallback?.place ?? "guest" };
+  });
 }
 
 /**
@@ -222,6 +232,7 @@ export function parseContent(body: unknown, albumFiles: string[]): WeddingConten
         end: dateTime(e?.end, `${label} — kết thúc`),
         image: image(e?.image, `${label} — ảnh`),
         main: Boolean(e?.main),
+        place: EVENT_PLACES.includes(e?.place) ? e.place : "guest",
       };
     }),
     places: {

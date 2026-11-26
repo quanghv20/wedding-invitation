@@ -2,7 +2,7 @@
 
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, DatabaseBackup, ExternalLink, Eye, EyeOff, KeyRound, Loader2, LogOut, Plus, Save, Shuffle, Trash2 } from "lucide-react";
-import { SIDE_LABEL, type WeddingContent } from "@/config/wedding";
+import { EVENT_PLACES, EVENT_PLACE_LABEL, SIDE_LABEL, type EventPlace, type WeddingContent } from "@/config/wedding";
 import type { Rsvp } from "@/app/api/rsvp/route";
 import type { Wish } from "@/app/api/wishes/route";
 import { inviteeOf, type Guest } from "@/lib/guest";
@@ -12,6 +12,9 @@ import { SUGGESTED_GALLERY_SIZE, withSuggestedImages } from "./suggestImages";
 import { GuestManager } from "./GuestManager";
 import { PREVIEW_READY, PREVIEW_SECTIONS, PREVIEW_UPDATE, type PreviewMessage, type PreviewSection } from "./previewProtocol";
 import { Pagination, Section, buttonClass, inputClass, usePaged } from "./ui";
+import { Select } from "../ui/Select";
+
+const EVENT_PLACE_OPTIONS = EVENT_PLACES.map((value) => ({ value, label: EVENT_PLACE_LABEL[value] }));
 
 type Data = { content: WeddingContent; rsvp: Rsvp[]; wishes: Wish[]; guests: Guest[]; album: string[] };
 type Tab = "content" | "guests" | "rsvp" | "wishes" | "password" | "backup";
@@ -251,7 +254,7 @@ function ContentForm({
             </div>
           ))}
           <p className="text-xs text-muted sm:col-span-2">
-            Các sự kiện dùng chung giờ, địa chỉ hiện theo bên: link có <span className="font-mono">?side=groom</span> /{" "}
+            Sự kiện chọn địa điểm &quot;Theo bên của khách&quot; thì địa chỉ hiện theo bên: link có <span className="font-mono">?side=groom</span> /{" "}
             <span className="font-mono">?side=bride</span>, hoặc link mời riêng theo bên đã chọn cho khách. Không rõ bên nào thì thiệp hiện cả
             hai (như khung xem trước).
           </p>
@@ -260,13 +263,23 @@ function ContentForm({
           items={content.events}
           onChange={(events) => update({ events })}
           itemLabel="Sự kiện"
-          blank={{ title: "", side: "", start: "", end: "", image: "", main: false }}
+          blank={{ title: "", side: "", start: "", end: "", image: "", main: false, place: "guest" as EventPlace }}
           render={(event, patch) => (
             <div className={grid}>
               <Field label="Tên sự kiện" value={event.title} onChange={(title) => patch({ title })} />
               <Field label="Nhãn (vd: Ngày thứ nhất)" value={event.side} onChange={(side) => patch({ side })} />
               <DateField label="Bắt đầu (giờ Việt Nam)" value={event.start} onChange={(start) => patch({ start })} />
               <DateField label="Kết thúc (giờ Việt Nam)" value={event.end} onChange={(end) => patch({ end })} />
+              <div>
+                <span className="mb-1 block text-xs font-medium text-muted">Địa điểm</span>
+                <Select
+                  value={event.place}
+                  onChange={(place) => patch({ place: place as EventPlace })}
+                  options={EVENT_PLACE_OPTIONS}
+                  aria-label="Địa điểm sự kiện"
+                  className={inputClass}
+                />
+              </div>
               <ImageField label="Ảnh" value={event.image} onChange={(image) => patch({ image })} />
               <label className="flex items-center gap-2 text-sm text-ink sm:col-span-2">
                 <input

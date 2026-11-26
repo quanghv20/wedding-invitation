@@ -3,11 +3,11 @@
 import Image from "next/image";
 import { motion, type Variants } from "motion/react";
 import { CalendarPlus, Clock, Gift, MapPin, Navigation, Send } from "lucide-react";
-import { locationText, mainEventOf, placeText } from "@/config/wedding";
+import { eventPlaces, locationText, mainEventOf, placeText } from "@/config/wedding";
 import { dateParts, formatTime, googleCalendarUrl, mapsUrl, weekdayName } from "@/lib/format";
 import { hostsOf, inviteeOf } from "@/lib/guest";
 import { useCountdown } from "@/lib/hooks";
-import { useGuest, usePlaces, useWedding } from "./WeddingProvider";
+import { useEventPlaces, useGuest, usePlaces, useSide, useWedding } from "./WeddingProvider";
 import { VibrantBackground } from "./effects/VibrantBackground";
 import { FloralCorner } from "./ui/Ornament";
 import { goToGiftQr, scrollToId } from "./SmoothScroll";
@@ -85,11 +85,12 @@ function MiniCountdown() {
 
 function Schedule() {
   const wedding = useWedding();
-  const places = usePlaces();
+  const side = useSide();
   return (
     <ul className="space-y-2">
       {wedding.events.map((e) => {
         const d = dateParts(e.start);
+        const places = eventPlaces(wedding, e, side);
         return (
           <li
             key={e.title}
@@ -127,7 +128,7 @@ export function Hero() {
     title: `Đám cưới ${wedding.groom.name} & ${wedding.bride.name}`,
     start: mainEvent.start,
     end: mainEvent.end,
-    location: locationText(places),
+    location: locationText(useEventPlaces(mainEvent)),
   });
 
   const smallBtn =
