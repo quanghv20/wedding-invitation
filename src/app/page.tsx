@@ -29,17 +29,20 @@ async function loadGuest(searchParams: Props["searchParams"]): Promise<Guest | n
 }
 
 /**
- * ?side=groom / ?side=bride trên link (link cũ ?ben=trai / ?ben=gai vẫn nhận),
- * không có thì theo bên của khách trong link mời riêng; null là cả hai.
+ * Bên của khách (quyết định địa chỉ hiển thị); null là hiện cả hai.
+ * - Link mời riêng mà khách đã ghi bên: theo bên đang lưu trong admin, để đổi bên sau khi
+ *   đã gửi link thì link cũ (có &side= cũ) vẫn hiện đúng.
+ * - Còn lại: ?side=groom / ?side=bride trên link (link cũ ?ben=trai / ?ben=gai vẫn nhận).
  */
 async function loadSide(searchParams: Props["searchParams"], guest: Guest | null): Promise<Side | null> {
   if (staticExport) return null;
+  if (guest?.side) return guest.side;
   const params = await searchParams;
   const raw = params.side ?? params.ben;
   const value = (Array.isArray(raw) ? raw[0] : raw)?.toLowerCase().replace(/[\s_-]/g, "");
   if (value && ["trai", "nhatrai", "groom"].includes(value)) return "groom";
   if (value && ["gai", "nhagai", "bride"].includes(value)) return "bride";
-  return guest?.side || null;
+  return null;
 }
 
 async function load(searchParams: Props["searchParams"]) {

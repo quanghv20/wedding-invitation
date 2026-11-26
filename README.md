@@ -16,7 +16,8 @@ Toàn bộ nội dung (tên, ngày giờ, địa điểm, ảnh, câu chuyện, 
 
 - **Ảnh**: mọi ảnh nằm trong `public/albums/` (thêm/bớt file rồi deploy). Ảnh gốc từ máy ảnh để trong `albums-original/` (không commit), chạy `node scripts/optimize-albums.cjs` để tạo bản cho web (cạnh dài 2560px, ~300KB/ảnh, giữ nguyên tên file). Ở `/admin`, các trường ảnh chọn ảnh từ album; phần Album cho kéo thả để đổi thứ tự và tick để chọn ảnh nào hiển thị.
 - **Nhạc nền**: bỏ file vào `public/music/wedding.mp3` (hoặc sửa `music`). Không có file thì nút nhạc tự ẩn.
-- **Thiệp riêng cho từng khách**: thêm `?to=` vào link, ví dụ `/?to=Anh Nam & Chị Lan`.
+- **Thiệp riêng cho từng khách**: tạo ở `/admin` > Khách mời. Link dạng `/?to=<id>&side=groom` (nhà trai), `&side=bride` (nhà gái), hoặc chỉ `/?to=<id>` khi không ghi bên. Bên đang lưu trong admin luôn được ưu tiên, nên đổi bên sau khi đã gửi link vẫn hiện đúng.
+- **Link chung theo bên**: `/?side=groom`, `/?side=bride`; không có thì thiệp hiện địa chỉ cả hai bên.
 - **Mã QR mừng cưới**: tự sinh qua VietQR từ `bankId` + `accountNo`.
 
 ## Database & trang admin

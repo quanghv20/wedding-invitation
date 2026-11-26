@@ -44,7 +44,12 @@ export function inviteMessage(g: Guest, couple: string, url: string) {
     .join("\n");
 }
 
-export const guestUrl = (origin: string, id: string) => `${origin}/?to=${id}`;
+/**
+ * Link mời riêng: /?to=<id>, kèm &side=groom|bride khi khách thuộc nhà trai / nhà gái
+ * để thiệp hiện đúng địa chỉ bên đó; "Không ghi" thì không có side (thiệp hiện cả hai bên).
+ */
+export const guestUrl = (origin: string, guest: Pick<Guest, "id" | "side">) =>
+  `${origin}/?to=${guest.id}${guest.side ? `&side=${guest.side}` : ""}`;
 
 /** Id ngắn, bỏ các ký tự dễ nhầm (0/o, 1/l/i) để đọc qua điện thoại cũng không sai */
 export const GUEST_ID_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789";

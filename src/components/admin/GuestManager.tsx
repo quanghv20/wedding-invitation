@@ -16,7 +16,7 @@ import {
   type Guest,
   type GuestInput,
 } from "@/lib/guest";
-import { Section, buttonClass, inputClass } from "./ui";
+import { Pagination, Section, buttonClass, inputClass, usePaged } from "./ui";
 import { Select } from "../ui/Select";
 
 const BLANK: GuestInput = { title: "", name: "", extra: "", hostPronoun: "", side: "", group: "", message: "" };
@@ -214,6 +214,7 @@ export function GuestManager({
   const visible = guests.filter(
     (g) => (!sideFilter || g.side === sideFilter) && (!q || normalize(`${inviteeOf(g)} ${g.group} ${g.message}`).includes(q)),
   );
+  const { topRef, shown, pagination } = usePaged(visible, `${sideFilter}|${q}`);
   const coming = guests.filter((g) => rsvpByGuest.get(g.id)?.attending);
   const declined = guests.filter((g) => rsvpByGuest.get(g.id) && !rsvpByGuest.get(g.id)!.attending);
 
@@ -309,11 +310,11 @@ export function GuestManager({
         {created && (
           <div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50/70 p-4">
             <p className="text-sm font-medium text-emerald-800">Đã lưu lời mời cho {inviteeOf(created)}</p>
-            <p className="mt-1 font-mono text-sm break-all text-ink">{guestUrl(origin, created.id)}</p>
+            <p className="mt-1 font-mono text-sm break-all text-ink">{guestUrl(origin, created)}</p>
             <div className="mt-3 flex flex-wrap gap-2">
-              <CopyButton primary text={guestUrl(origin, created.id)} label="Chép link" />
-              <CopyButton text={inviteMessage(created, couple, guestUrl(origin, created.id))} label="Chép lời nhắn kèm link" icon={MessageSquareText} />
-              <a href={guestUrl(origin, created.id)} target="_blank" rel="noreferrer" className={`${buttonClass} border border-gold/40 px-3 py-1.5 text-wine hover:bg-blush/40`}>
+              <CopyButton primary text={guestUrl(origin, created)} label="Chép link" />
+              <CopyButton text={inviteMessage(created, couple, guestUrl(origin, created))} label="Chép lời nhắn kèm link" icon={MessageSquareText} />
+              <a href={guestUrl(origin, created)} target="_blank" rel="noreferrer" className={`${buttonClass} border border-gold/40 px-3 py-1.5 text-wine hover:bg-blush/40`}>
                 <ExternalLink className="size-4" /> Mở thử
               </a>
             </div>
@@ -322,6 +323,7 @@ export function GuestManager({
       </Section>
 
       <Section title={`Danh sách khách mời (${guests.length})`}>
+        <div ref={topRef} className="scroll-mt-24" />
         <p className="mb-4 text-sm text-muted">
           {coming.length} sẽ đến ({coming.reduce((sum, g) => sum + (rsvpByGuest.get(g.id)?.guests ?? 0), 0)} người) · {declined.length} không đến ·{" "}
           {guests.length - coming.length - declined.length} chưa phản hồi
@@ -353,8 +355,8 @@ export function GuestManager({
           <p className="p-6 text-center text-sm text-muted">Không có khách nào khớp.</p>
         ) : (
           <ul className="divide-y divide-gold/10">
-            {visible.map((g) => {
-              const url = guestUrl(origin, g.id);
+            {shown.map((g) => {
+              const url = guestUrl(origin, g);
               const status = statusOf(rsvpByGuest.get(g.id));
               const iconButton = "cursor-pointer rounded-full p-2 text-muted transition hover:bg-blush/60 hover:text-wine";
               return (
@@ -387,6 +389,7 @@ export function GuestManager({
             })}
           </ul>
         )}
+        <Pagination {...pagination} />
       </Section>
     </div>
   );

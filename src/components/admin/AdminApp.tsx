@@ -11,7 +11,7 @@ import { BackupManager } from "./BackupManager";
 import { SUGGESTED_GALLERY_SIZE, withSuggestedImages } from "./suggestImages";
 import { GuestManager } from "./GuestManager";
 import { PREVIEW_READY, PREVIEW_SECTIONS, PREVIEW_UPDATE, type PreviewMessage, type PreviewSection } from "./previewProtocol";
-import { Section, buttonClass, inputClass } from "./ui";
+import { Pagination, Section, buttonClass, inputClass, usePaged } from "./ui";
 
 type Data = { content: WeddingContent; rsvp: Rsvp[]; wishes: Wish[]; guests: Guest[]; album: string[] };
 type Tab = "content" | "guests" | "rsvp" | "wishes" | "password" | "backup";
@@ -375,10 +375,12 @@ const formatDate =(iso: string) => new Date(iso).toLocaleString("vi-VN", { timeZ
 
 function RsvpList({ items, invited }: { items: Rsvp[]; invited: Guest[] }) {
   const guestById = new Map(invited.map((g) => [g.id, g]));
+  const { topRef, shown, pagination } = usePaged(items);
   const coming = items.filter((r) => r.attending);
   const guests = coming.reduce((sum, r) => sum + r.guests, 0);
   return (
     <Section title="Xác nhận tham dự">
+      <div ref={topRef} className="scroll-mt-24" />
       <p className="mb-4 text-sm text-muted">
         {items.length} phản hồi · {coming.length} sẽ đến · tổng {guests} khách
       </p>
@@ -394,7 +396,7 @@ function RsvpList({ items, invited }: { items: Rsvp[]; invited: Guest[] }) {
             </tr>
           </thead>
           <tbody>
-            {items.map((r) => (
+            {shown.map((r) => (
               <tr key={r.id} className="border-b border-gold/10 align-top">
                 <td className="py-2 pr-4 font-medium text-ink">
                   {r.name}
@@ -413,15 +415,20 @@ function RsvpList({ items, invited }: { items: Rsvp[]; invited: Guest[] }) {
           </tbody>
         </table>
       </div>
+      <Pagination {...pagination} />
     </Section>
   );
 }
 
 function WishList({ items }: { items: Wish[] }) {
+  const { topRef, shown, pagination } = usePaged(items);
+
   return (
-    <Section title="Lời chúc">
+    <Section title={`Lời chúc (${items.length})`}>
+      <div ref={topRef} className="scroll-mt-24" />
+      {!items.length && <p className="text-sm text-muted">Chưa có lời chúc nào.</p>}
       <ul className="space-y-3">
-        {items.map((w) => (
+        {shown.map((w) => (
           <li key={w.id} className="rounded-xl border border-gold/15 bg-ivory/60 p-4 text-sm">
             <p className="font-medium text-ink">{w.name}</p>
             <p className="mt-1 text-ink/80">{w.message}</p>
@@ -429,6 +436,7 @@ function WishList({ items }: { items: Wish[] }) {
           </li>
         ))}
       </ul>
+      <Pagination {...pagination} />
     </Section>
   );
 }
