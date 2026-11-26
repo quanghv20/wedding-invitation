@@ -7,13 +7,21 @@ on:
 
 concurrency: deploy
 
+permissions:
+  contents: read
+
 jobs:
   deploy:
     runs-on: self-hosted
     steps:
       - name: Build and restart
         working-directory: /home/ubuntu/my-app/wedding-invitation
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git pull --ff-only
+          # repo private: kéo code bằng token của chính lần chạy này (tự hết hạn khi job xong),
+          # không cần lưu mật khẩu / token GitHub trên server
+          auth=$(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 -w0)
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" pull --ff-only
           docker compose up -d --build --wait
           docker image prune -f
