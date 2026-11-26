@@ -3,11 +3,11 @@
 import Image from "next/image";
 import { motion, type Variants } from "motion/react";
 import { CalendarPlus, Clock, Gift, MapPin, Navigation, Send } from "lucide-react";
-import { mainEventOf } from "@/config/wedding";
+import { locationText, mainEventOf, placeText } from "@/config/wedding";
 import { dateParts, formatTime, googleCalendarUrl, mapsUrl, weekdayName } from "@/lib/format";
 import { hostsOf, inviteeOf } from "@/lib/guest";
 import { useCountdown } from "@/lib/hooks";
-import { useGuest, useWedding } from "./WeddingProvider";
+import { useGuest, usePlaces, useWedding } from "./WeddingProvider";
 import { VibrantBackground } from "./effects/VibrantBackground";
 import { FloralCorner } from "./ui/Ornament";
 import { goToGiftQr, scrollToId } from "./SmoothScroll";
@@ -85,6 +85,7 @@ function MiniCountdown() {
 
 function Schedule() {
   const wedding = useWedding();
+  const places = usePlaces();
   return (
     <ul className="space-y-2">
       {wedding.events.map((e) => {
@@ -107,7 +108,7 @@ function Schedule() {
             <span className="min-w-0">
               <span className={`block font-semibold ${e.main ? "" : "text-ink"}`}>{e.title}</span>
               <span className={`block truncate text-xs ${e.main ? "text-white/85" : "text-ink/60"}`}>
-                {weekdayName(e.start)} · {e.venue}
+                {weekdayName(e.start)}{places.length === 1 && ` · ${places[0].venue}`}
               </span>
             </span>
           </li>
@@ -121,12 +122,12 @@ export function Hero() {
   const guest = useGuest();
   const wedding = useWedding();
   const mainEvent = mainEventOf(wedding);
-  const place = `${mainEvent.venue}, ${mainEvent.address}`;
+  const places = usePlaces();
   const calendarUrl = googleCalendarUrl({
     title: `Đám cưới ${wedding.groom.name} & ${wedding.bride.name}`,
     start: mainEvent.start,
     end: mainEvent.end,
-    location: place,
+    location: locationText(places),
   });
 
   const smallBtn =
@@ -151,14 +152,14 @@ export function Hero() {
             transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
             className="absolute top-1/2 left-1/2 aspect-square w-[125%] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-dashed border-[#ff8fb1]/50"
           />
-          <div className="relative aspect-[3/4] w-[min(62vw,240px)] overflow-hidden rounded-t-full rounded-b-[2rem] border-[6px] border-white shadow-[0_25px_60px_rgba(255,111,145,0.35)] lg:w-[380px]">
+          <div className="relative aspect-[2/3] w-[min(62vw,240px)] overflow-hidden rounded-t-full rounded-b-[2rem] border-[6px] border-white shadow-[0_25px_60px_rgba(255,111,145,0.35)] lg:w-[380px]">
             <Image
               src={wedding.hero.image}
               alt={`${wedding.groom.name} & ${wedding.bride.name}`}
               fill
               priority
               sizes="(max-width: 1024px) 62vw, 380px"
-              className="animate-ken-burns object-cover object-[50%_15%]"
+              className="animate-ken-burns object-cover"
             />
           </div>
           <motion.div
@@ -210,19 +211,26 @@ export function Hero() {
             <DateBlock />
           </motion.div>
 
-          <motion.a
-            variants={item}
-            href={mapsUrl(place)}
-            target="_blank"
-            rel="noreferrer"
-            className="mx-auto mt-5 flex max-w-md items-start gap-2 rounded-2xl bg-white/70 px-4 py-3 text-left shadow-sm ring-1 ring-white transition hover:bg-white"
-          >
-            <MapPin className="mt-0.5 size-5 shrink-0 text-[#e0587f]" />
-            <span className="text-sm">
-              <span className="block font-semibold text-ink">Địa điểm: {mainEvent.venue}</span>
-              <span className="text-ink/70">{mainEvent.address}</span>
-            </span>
-          </motion.a>
+          <motion.div variants={item} className="mx-auto mt-5 max-w-md space-y-2">
+            {places.map((place) => (
+              <a
+                key={place.side}
+                href={mapsUrl(placeText(place))}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-start gap-2 rounded-2xl bg-white/70 px-4 py-3 text-left shadow-sm ring-1 ring-white transition hover:bg-white"
+              >
+                <MapPin className="mt-0.5 size-5 shrink-0 text-[#e0587f]" />
+                <span className="text-sm">
+                  <span className="block font-semibold text-ink">
+                    {places.length > 1 ? `${place.label}: ` : "Địa điểm: "}
+                    {place.venue}
+                  </span>
+                  <span className="text-ink/70">{place.address}</span>
+                </span>
+              </a>
+            ))}
+          </motion.div>
         </div>
 
         {/* Lịch trình, đếm ngược và hành động — trên desktop nằm dưới cột thông tin */}
@@ -247,9 +255,16 @@ export function Hero() {
           </button>
 
           <div className="grid grid-cols-3 gap-2">
-            <a href={mapsUrl(place)} target="_blank" rel="noreferrer" className={smallBtn}>
-              <Navigation className="size-5 text-[#e0587f]" /> Chỉ đường
-            </a>
+            {places.length === 1 ? (
+              <a href={mapsUrl(placeText(places[0]))} target="_blank" rel="noreferrer" className={smallBtn}>
+                <Navigation className="size-5 text-[#e0587f]" /> Chỉ đường
+              </a>
+            ) : (
+              // hai địa chỉ: xuống phần sự kiện, nơi có bản đồ của từng bên
+              <button type="button" onClick={() => scrollToId("events")} className={`${smallBtn} cursor-pointer`}>
+                <Navigation className="size-5 text-[#e0587f]" /> Chỉ đường
+              </button>
+            )}
             <a href={calendarUrl} target="_blank" rel="noreferrer" className={smallBtn}>
               <CalendarPlus className="size-5 text-[#e0587f]" /> Lưu lịch
             </a>

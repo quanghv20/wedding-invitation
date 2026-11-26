@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import { AnimatePresence, motion, type Variants } from "motion/react";
-import { ChevronLeft, ChevronRight, Expand, X } from "lucide-react";
-import { useWedding } from "./WeddingProvider";
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Expand, X } from "lucide-react";
+import { useFullAlbum, useWedding } from "./WeddingProvider";
+import { scrollToId } from "./SmoothScroll";
 import { SectionTitle } from "./ui/SectionTitle";
 
 const slide: Variants = {
@@ -12,10 +13,18 @@ const slide: Variants = {
   center: { opacity: 1, x: 0, scale: 1 },
   exit: (d: number) => ({ opacity: 0, x: d * -120 }),
 };
-const aspects = ["aspect-[3/4]", "aspect-square", "aspect-[4/5]", "aspect-[3/4]", "aspect-[4/3]", "aspect-[2/3]"];
 
-function Lightbox({ index, onClose, onChange }: { index: number; onClose: () => void; onChange: (i: number) => void }) {
-  const { gallery: photos } = useWedding();
+function Lightbox({
+  photos,
+  index,
+  onClose,
+  onChange,
+}: {
+  photos: string[];
+  index: number;
+  onClose: () => void;
+  onChange: (i: number) => void;
+}) {
   const [direction, setDirection] = useState(0);
 
   const go = useCallback(
@@ -101,7 +110,12 @@ function Lightbox({ index, onClose, onChange }: { index: number; onClose: () => 
 }
 
 export function Gallery() {
-  const { gallery: photos } = useWedding();
+  const { gallery } = useWedding();
+  const album = useFullAlbum();
+  // mặc định chỉ hiện bộ ảnh chọn ở admin; khách muốn thì mở cả album
+  const [expanded, setExpanded] = useState(false);
+  const photos = expanded ? album : gallery;
+  const more = album.length - gallery.length;
   const [selected, setSelected] = useState<number | null>(null);
 
   useEffect(() => {
@@ -116,7 +130,8 @@ export function Gallery() {
         description="Những khung hình lưu giữ yêu thương — chạm vào ảnh để xem rõ hơn."
       />
 
-      <div className="mx-auto max-w-6xl columns-2 gap-3 md:columns-3 md:gap-5">
+      {/* ảnh cưới đều là ảnh dọc 2:3: lưới đều, đúng tỷ lệ gốc nên không bị cắt */}
+      <div className="mx-auto grid max-w-6xl grid-cols-2 gap-3 md:grid-cols-3 md:gap-5">
         {photos.map((src, i) => (
           <motion.button
             key={src}
@@ -126,9 +141,9 @@ export function Gallery() {
             whileInView={{ opacity: 1, y: 0, scale: 1 }}
             viewport={{ once: true, margin: "-50px" }}
             transition={{ duration: 0.8, delay: (i % 3) * 0.12, ease: [0.22, 1, 0.36, 1] }}
-            className="group relative mb-3 block w-full cursor-zoom-in break-inside-avoid overflow-hidden rounded-2xl md:mb-5"
+            className="group relative block w-full cursor-zoom-in overflow-hidden rounded-2xl"
           >
-            <div className={`relative w-full ${aspects[i % aspects.length]}`}>
+            <div className="relative aspect-[2/3] w-full">
               <Image
                 src={src}
                 alt={`Ảnh cưới ${i + 1}`}
@@ -144,9 +159,34 @@ export function Gallery() {
         ))}
       </div>
 
+      {more > 0 && (
+        <div className="mt-10 flex justify-center md:mt-14">
+          <button
+            type="button"
+            aria-expanded={expanded}
+            onClick={() => {
+              setExpanded((v) => !v);
+              // thu gọn thì đưa khách về đầu album, không bị lạc xuống dưới
+              if (expanded) scrollToId("gallery");
+            }}
+            className="flex cursor-pointer items-center gap-2 rounded-full border border-wine/30 bg-white/80 px-6 py-3 text-sm font-medium text-wine shadow-sm transition hover:border-wine hover:bg-wine hover:text-ivory hover:shadow-lg"
+          >
+            {expanded ? (
+              <>
+                <ChevronUp className="size-4" /> Thu gọn album
+              </>
+            ) : (
+              <>
+                <ChevronDown className="size-4" /> Xem toàn bộ album
+              </>
+            )}
+          </button>
+        </div>
+      )}
+
       <AnimatePresence>
         {selected !== null && (
-          <Lightbox index={selected} onClose={() => setSelected(null)} onChange={setSelected} />
+          <Lightbox photos={photos} index={selected} onClose={() => setSelected(null)} onChange={setSelected} />
         )}
       </AnimatePresence>
     </section>

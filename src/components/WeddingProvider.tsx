@@ -1,25 +1,39 @@
 "use client";
 
 import { createContext, useContext } from "react";
-import type { WeddingContent } from "@/config/wedding";
+import { placesFor, type Side, type WeddingContent } from "@/config/wedding";
 import type { Guest } from "@/lib/guest";
 
 const WeddingContext = createContext<WeddingContent | null>(null);
 const GuestContext = createContext<Guest | null>(null);
+const SideContext = createContext<Side | null>(null);
+const AlbumContext = createContext<string[] | null>(null);
 
-/** guest: khách mở thiệp từ link mời riêng (/?to=<id>), null nếu không có hoặc id sai */
+/**
+ * guest: khách mở thiệp từ link mời riêng (/?to=<id>), null nếu không có hoặc id sai.
+ * side: thiệp của nhà trai hay nhà gái (quyết định địa chỉ hiển thị), null thì hiện cả hai.
+ * album: toàn bộ ảnh cho nút "Xem toàn bộ album" (bộ đã chọn trước), không có thì chỉ có bộ đã chọn.
+ */
 export function WeddingProvider({
   content,
   guest = null,
+  side = null,
+  album = null,
   children,
 }: {
   content: WeddingContent;
   guest?: Guest | null;
+  side?: Side | null;
+  album?: string[] | null;
   children: React.ReactNode;
 }) {
   return (
     <WeddingContext.Provider value={content}>
-      <GuestContext.Provider value={guest}>{children}</GuestContext.Provider>
+      <GuestContext.Provider value={guest}>
+        <SideContext.Provider value={side}>
+          <AlbumContext.Provider value={album}>{children}</AlbumContext.Provider>
+        </SideContext.Provider>
+      </GuestContext.Provider>
     </WeddingContext.Provider>
   );
 }
@@ -31,3 +45,14 @@ export function useWedding() {
 }
 
 export const useGuest = () => useContext(GuestContext);
+export const useSide = () => useContext(SideContext);
+
+/** Toàn bộ ảnh album (bộ đã chọn đứng đầu) */
+export function useFullAlbum() {
+  const album = useContext(AlbumContext);
+  const { gallery } = useWedding();
+  return album && album.length > gallery.length ? album : gallery;
+}
+
+/** Địa điểm cần hiện cho khách đang xem: một bên, hoặc cả hai */
+export const usePlaces = () => placesFor(useWedding(), useSide());

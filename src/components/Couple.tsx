@@ -22,7 +22,7 @@ function PersonCard({ person, from }: { person: Person; from: "left" | "right" }
           animate={{ opacity: [0.3, 1, 0.3] }}
           transition={{ duration: 4, repeat: Infinity }}
         />
-        <div className="group relative aspect-[3/4] overflow-hidden rounded-t-full shadow-[0_30px_60px_rgba(110,40,56,0.2)]">
+        <div className="group relative aspect-[2/3] overflow-hidden rounded-t-full shadow-[0_30px_60px_rgba(110,40,56,0.2)]">
           <Image
             src={person.photo}
             alt={person.fullName}

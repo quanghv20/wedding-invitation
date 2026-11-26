@@ -17,6 +17,7 @@ import {
   type GuestInput,
 } from "@/lib/guest";
 import { Section, buttonClass, inputClass } from "./ui";
+import { Select } from "../ui/Select";
 
 const BLANK: GuestInput = { title: "", name: "", extra: "", hostPronoun: "", side: "", group: "", message: "" };
 const SIDES = [
@@ -269,16 +270,16 @@ export function GuestManager({
               list="guest-hosts"
               options={HOST_SUGGESTIONS}
             />
-            <label className="block">
+            <div>
               <span className="mb-1 block text-xs font-medium text-muted">Khách của</span>
-              <select value={form.side} onChange={(e) => patch({ side: e.target.value as GuestInput["side"] })} className={`${inputClass} cursor-pointer`}>
-                {SIDES.map((s) => (
-                  <option key={s.value} value={s.value}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+              <Select
+                value={form.side}
+                onChange={(side) => patch({ side: side as GuestInput["side"] })}
+                options={SIDES}
+                aria-label="Khách của"
+                className={inputClass}
+              />
+            </div>
             <TextInput label="Nhóm (chỉ admin thấy, để lọc)" value={form.group} onChange={(group) => patch({ group })} placeholder="Bạn đại học" list="guest-groups" options={groups} />
             <label className="block sm:col-span-2">
               <span className="mb-1 block text-xs font-medium text-muted">Lời nhắn riêng (hiện trên thiệp)</span>

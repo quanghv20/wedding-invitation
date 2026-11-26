@@ -1,6 +1,7 @@
 import { wedding, type WeddingContent } from "@/config/wedding";
+import { listAlbum } from "./albums";
 import { getValue, hasDatabase, setValue } from "./db";
-import { IMAGE_HOSTS, isAllowedImage } from "./images";
+import { isAlbumImage } from "./images";
 import { clean } from "./store";
 
 /** Sau khoảng này thì nội dung được làm mới ngầm; khách vẫn nhận ngay bản đang giữ, không phải chờ database */
@@ -10,9 +11,69 @@ const globalCache = globalThis as unknown as {
   __weddingRefresh?: Promise<WeddingContent>;
 };
 
+/** Đọc nội dung trong database; phần nào hỏng thì thay bằng phần tương ứng trong code */
 export async function readStoredContent(): Promise<WeddingContent> {
-  // ghép với mặc định để trường mới thêm trong code vẫn có giá trị với dữ liệu cũ
-  return { ...wedding, ...(await getValue<Partial<WeddingContent>>("content")) };
+  const [stored, album] = await Promise.all([getValue<unknown>("content"), listAlbum()]);
+  return repairContent(stored, album);
+}
+
+/** Ảnh không có trong album (link cũ, file đã xóa) thì dùng ảnh mặc định cùng vị trí */
+function withAlbumImages(input: Record<string, unknown>, album: Set<string>): Record<string, unknown> {
+  const ok = (src: unknown) => typeof src === "string" && album.has(src);
+  const fix = (src: unknown, fallback: string) => (ok(src) ? src : fallback);
+  const obj = (value: unknown) => (value && typeof value === "object" ? (value as Record<string, unknown>) : {});
+  // khớp theo tên trước (thứ tự trong database có thể khác code), không có thì theo vị trí
+  const items = <T extends { image: string; title: string }>(value: unknown, defaults: T[]) =>
+    Array.isArray(value)
+      ? value.map((item, i) => {
+          const fallback = defaults.find((d) => d.title === obj(item).title) ?? defaults[i % defaults.length];
+          return { ...obj(item), image: fix(obj(item).image, fallback.image) };
+        })
+      : value;
+
+  const gallery = Array.isArray(input.gallery) ? input.gallery.filter(ok) : [];
+  return {
+    ...input,
+    hero: { image: fix(obj(input.hero).image, wedding.hero.image) },
+    groom: { ...obj(input.groom), photo: fix(obj(input.groom).photo, wedding.groom.photo) },
+    bride: { ...obj(input.bride), photo: fix(obj(input.bride).photo, wedding.bride.photo) },
+    events: items(input.events, wedding.events),
+    story: items(input.story, wedding.story),
+    footerImage: fix(input.footerImage, wedding.footerImage),
+    // album trống thì thiệp trông như lỗi: dùng album mặc định
+    ...(gallery.length ? {} : { gallery: wedding.gallery, galleryOrder: wedding.galleryOrder }),
+  };
+}
+
+/**
+ * Nội dung đọc được luôn hợp lệ: kiểm tra như lúc admin lưu, phần nào không hợp lệ
+ * (thiếu, sai kiểu, ảnh không còn) thì lấy phần đó trong src/config/wedding.ts.
+ */
+export function repairContent(stored: unknown, albumFiles: string[]): WeddingContent {
+  if (!stored || typeof stored !== "object" || Array.isArray(stored)) {
+    console.warn("[content] no valid content in database, using defaults");
+    return wedding;
+  }
+  const album = new Set(albumFiles);
+  const input = withAlbumImages({ ...wedding, ...stored }, album);
+  try {
+    return parseContent(input, albumFiles);
+  } catch (error) {
+    if (!(error instanceof ContentError)) throw error;
+  }
+
+  // kiểm tra từng phần, mỗi lần chỉ lấy một phần từ database còn lại là mặc định
+  const result = { ...wedding } as Record<string, unknown>;
+  const broken: string[] = [];
+  for (const key of Object.keys(wedding) as (keyof WeddingContent)[]) {
+    try {
+      result[key] = parseContent({ ...wedding, [key]: input[key] }, albumFiles)[key];
+    } catch {
+      broken.push(key);
+    }
+  }
+  console.warn(`[content] invalid data in database, using defaults for: ${broken.join(", ")}`);
+  return result as WeddingContent;
 }
 
 /** Các lượt gọi cùng lúc dùng chung một truy vấn */
@@ -36,8 +97,17 @@ export async function getWeddingContent(): Promise<WeddingContent> {
   if (!hasDatabase()) return wedding;
 
   const cached = globalCache.__weddingContent;
-  // Chưa có bản nào thì phải chờ, không rơi về nội dung mặc định: trong đó có số tài khoản mẫu
-  if (!cached) return refreshContent();
+  if (!cached) {
+    try {
+      return await refreshContent();
+    } catch (error) {
+      // database lỗi: dùng nội dung trong code, giữ lại để khách sau không phải chờ database nữa,
+      // hết CACHE_MS thì thử đọc lại database ở nền
+      console.error("[content] database error, serving default content", error);
+      globalCache.__weddingContent ??= { content: wedding, at: Date.now() };
+      return globalCache.__weddingContent.content;
+    }
+  }
 
   if (Date.now() - cached.at >= CACHE_MS) {
     refreshContent().catch((error) => console.error("[content] database error, serving cached content", error));
@@ -64,10 +134,10 @@ function required(value: unknown, label: string, max = 300) {
   return text;
 }
 
-function image(value: unknown, label: string) {
-  const src = required(value, label, 1000);
-  if (isAllowedImage(src)) return src;
-  throw new ContentError(`${label}: ảnh phải là đường dẫn trong site (/images/ten-anh.jpg) hoặc link từ ${IMAGE_HOSTS.join(", ")}`);
+/** Chỉ giữ ảnh có trong album, mỗi ảnh một lần */
+function albumList(value: unknown, album: Set<string>) {
+  const items = Array.isArray(value) ? value : [];
+  return [...new Set(items.map((src) => clean(src, 300)).filter((src) => album.has(src)))];
 }
 
 function dateTime(value: unknown, label: string) {
@@ -89,7 +159,16 @@ function list(value: unknown, label: string, min: number, max: number) {
   return items;
 }
 
-function person(value: Partial<WeddingContent["groom"]> | undefined, label: string): WeddingContent["groom"] {
+function place(value: Partial<WeddingContent["places"]["groom"]> | undefined, label: string) {
+  return {
+    venue: required(value?.venue, `${label} — địa điểm`, 150),
+    address: required(value?.address, `${label} — địa chỉ`, 300),
+  };
+}
+
+type ImageCheck =(value: unknown, label: string) => string;
+
+function person(value: Partial<WeddingContent["groom"]> | undefined, label: string, image: ImageCheck): WeddingContent["groom"] {
   return {
     name: required(value?.name, `${label} — tên`, 60),
     fullName: required(value?.fullName, `${label} — họ tên đầy đủ`, 100),
@@ -101,16 +180,32 @@ function person(value: Partial<WeddingContent["groom"]> | undefined, label: stri
   };
 }
 
-/** Kiểm tra và làm sạch dữ liệu gửi từ trang admin, chỉ giữ các trường đã biết */
-export function parseContent(body: unknown): WeddingContent {
+/**
+ * Kiểm tra và làm sạch dữ liệu gửi từ trang admin, chỉ giữ các trường đã biết.
+ * `albumFiles`: ảnh đang có trong public/albums, mọi ảnh phải chọn trong số này.
+ */
+export function parseContent(body: unknown, albumFiles: string[]): WeddingContent {
   const input = (body ?? {}) as Partial<WeddingContent>;
+  const album = new Set(albumFiles);
+
+  const image: ImageCheck = (value, label) => {
+    const src = clean(value, 300);
+    if (!src) throw new ContentError(`${label}: chưa chọn ảnh`);
+    if (!isAlbumImage(src)) throw new ContentError(`${label}: hãy chọn lại ảnh trong album (không dùng link ngoài nữa)`);
+    if (!album.has(src)) throw new ContentError(`${label}: ảnh ${src} không còn trong thư mục public/albums`);
+    return src;
+  };
+
+  // thứ tự toàn bộ ảnh trong album; gallery là các ảnh được tick hiển thị, theo đúng thứ tự đó
+  const galleryOrder = albumList(input.galleryOrder, album);
+  const visible = new Set(albumList(input.gallery, album));
 
   const music = clean(input.music, 1000);
   if (music && !/^(\/[^/]|https:\/\/)/.test(music)) throw new ContentError("Nhạc nền: đường dẫn không hợp lệ");
 
   return {
-    groom: person(input.groom, "Chú rể"),
-    bride: person(input.bride, "Cô dâu"),
+    groom: person(input.groom, "Chú rể", image),
+    bride: person(input.bride, "Cô dâu", image),
     date: dateTime(input.date, "Thời điểm đếm ngược"),
     displayDate: clean(input.displayDate, 100),
     lunarDate: clean(input.lunarDate, 200),
@@ -125,13 +220,14 @@ export function parseContent(body: unknown): WeddingContent {
         side: clean(e?.side, 60),
         start: dateTime(e?.start, `${label} — bắt đầu`),
         end: dateTime(e?.end, `${label} — kết thúc`),
-        venue: required(e?.venue, `${label} — địa điểm`, 150),
-        address: required(e?.address, `${label} — địa chỉ`, 300),
         image: image(e?.image, `${label} — ảnh`),
         main: Boolean(e?.main),
       };
     }),
-    mapQuery: required(input.mapQuery, "Địa chỉ bản đồ", 300),
+    places: {
+      groom: place(input.places?.groom, "Nhà trai"),
+      bride: place(input.places?.bride, "Nhà gái"),
+    },
     story: list(input.story, "Chuyện tình", 0, 20).map((s, i) => {
       const label = `Chuyện tình ${i + 1}`;
       return {
@@ -141,10 +237,8 @@ export function parseContent(body: unknown): WeddingContent {
         image: image(s?.image, `${label} — ảnh`),
       };
     }),
-    gallery: list(input.gallery, "Album", 0, 1000)
-      .filter((src) => clean(src, 1000))
-      .slice(0, 100)
-      .map((src, i) => image(src, `Album — ảnh ${i + 1}`)),
+    gallery: [...galleryOrder.filter((src) => visible.has(src)), ...[...visible].filter((src) => !galleryOrder.includes(src))],
+    galleryOrder,
     gifts: list(input.gifts, "Mừng cưới", 0, 6).map((g, i) => {
       const label = `Mừng cưới ${i + 1}`;
       return {

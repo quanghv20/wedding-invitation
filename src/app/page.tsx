@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import { connection } from "next/server";
 import { Invitation } from "@/components/Invitation";
 import { WeddingProvider } from "@/components/WeddingProvider";
-import { mainEventOf } from "@/config/wedding";
+import { locationText, mainEventOf, placesFor, type Side } from "@/config/wedding";
+import { listAlbum } from "@/lib/albums";
 import { getWeddingContent } from "@/lib/content";
+import { fullAlbum } from "@/lib/images";
 import { formatDate, formatTime } from "@/lib/format";
 import { inviteeOf, type Guest } from "@/lib/guest";
 import { findGuest } from "@/lib/guestStore";
@@ -26,15 +28,35 @@ async function loadGuest(searchParams: Props["searchParams"]): Promise<Guest | n
   return guest && { ...guest, group: "" };
 }
 
-export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
+/**
+ * ?side=groom / ?side=bride trên link (link cũ ?ben=trai / ?ben=gai vẫn nhận),
+ * không có thì theo bên của khách trong link mời riêng; null là cả hai.
+ */
+async function loadSide(searchParams: Props["searchParams"], guest: Guest | null): Promise<Side | null> {
+  if (staticExport) return null;
+  const params = await searchParams;
+  const raw = params.side ?? params.ben;
+  const value = (Array.isArray(raw) ? raw[0] : raw)?.toLowerCase().replace(/[\s_-]/g, "");
+  if (value && ["trai", "nhatrai", "groom"].includes(value)) return "groom";
+  if (value && ["gai", "nhagai", "bride"].includes(value)) return "bride";
+  return guest?.side || null;
+}
+
+async function load(searchParams: Props["searchParams"]) {
   const [content, guest] = await Promise.all([loadContent(), loadGuest(searchParams)]);
+  return { content, guest, side: await loadSide(searchParams, guest) };
+}
+
+export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
+  const { content, guest, side } = await load(searchParams);
   const { groom, bride, hero } = content;
   const event = mainEventOf(content);
   const title = `Thiệp cưới ${groom.name} & ${bride.name}`;
+  const where = locationText(placesFor(content, side));
   // link gửi qua Zalo / Messenger hiện luôn tên người được mời trong phần xem trước
   const description =
     `Trân trọng kính mời ${guest ? inviteeOf(guest) : "bạn"} đến dự ${event.title.toLowerCase()} của chú rể ${groom.fullName} và cô dâu ${bride.fullName}, ` +
-    `${formatTime(event.start)} ${formatDate(event.start)}, tại ${event.venue}, ${event.address}.`;
+    `${formatTime(event.start)} ${formatDate(event.start)}, tại ${where}.`;
   return {
     title,
     description,
@@ -53,9 +75,10 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
 }
 
 export default async function Home({ searchParams }: Props) {
-  const [content, guest] = await Promise.all([loadContent(), loadGuest(searchParams)]);
+  const [{ content, guest, side }, files] = await Promise.all([load(searchParams), listAlbum()]);
+  const album = fullAlbum(files, content.galleryOrder ?? [], content.gallery);
   return (
-    <WeddingProvider content={content} guest={guest}>
+    <WeddingProvider content={content} guest={guest} side={side} album={album}>
       <Invitation />
     </WeddingProvider>
   );

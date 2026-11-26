@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { listAlbum } from "@/lib/albums";
 import { isAdmin } from "@/lib/auth";
 import { ContentError, parseContent, readStoredContent, saveWeddingContent } from "@/lib/content";
 import { hasDatabase } from "@/lib/db";
@@ -15,19 +16,20 @@ async function authorized(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   if (!(await authorized(request))) return unauthorized();
-  const [content, rsvp, wishes, guests] = await Promise.all([
+  const [content, rsvp, wishes, guests, album] = await Promise.all([
     readStoredContent(),
     readCollection<Rsvp>("rsvp"),
     readCollection<Wish>("wishes"),
     readGuests(),
+    listAlbum(),
   ]);
-  return NextResponse.json({ content, rsvp, wishes, guests });
+  return NextResponse.json({ content, rsvp, wishes, guests, album });
 }
 
 export async function PUT(request: NextRequest) {
   if (!(await authorized(request))) return unauthorized();
   try {
-    const content = parseContent(await request.json().catch(() => null));
+    const content = parseContent(await request.json().catch(() => null), await listAlbum());
     await saveWeddingContent(content);
     return NextResponse.json({ content });
   } catch (error) {

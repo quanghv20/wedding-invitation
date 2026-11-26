@@ -1,17 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, DatabaseBackup, ExternalLink, Eye, EyeOff, KeyRound, Loader2, LogOut, Plus, Save, Trash2, Upload } from "lucide-react";
-import type { WeddingContent } from "@/config/wedding";
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
+import { ArrowDown, ArrowUp, DatabaseBackup, ExternalLink, Eye, EyeOff, KeyRound, Loader2, LogOut, Plus, Save, Shuffle, Trash2 } from "lucide-react";
+import { SIDE_LABEL, type WeddingContent } from "@/config/wedding";
 import type { Rsvp } from "@/app/api/rsvp/route";
 import type { Wish } from "@/app/api/wishes/route";
 import { inviteeOf, type Guest } from "@/lib/guest";
+import { AlbumContext, GalleryEditor, ImageField } from "./AlbumPicker";
 import { BackupManager } from "./BackupManager";
+import { SUGGESTED_GALLERY_SIZE, withSuggestedImages } from "./suggestImages";
 import { GuestManager } from "./GuestManager";
 import { PREVIEW_READY, PREVIEW_SECTIONS, PREVIEW_UPDATE, type PreviewMessage, type PreviewSection } from "./previewProtocol";
 import { Section, buttonClass, inputClass } from "./ui";
 
-type Data = { content: WeddingContent; rsvp: Rsvp[]; wishes: Wish[]; guests: Guest[] };
+type Data = { content: WeddingContent; rsvp: Rsvp[]; wishes: Wish[]; guests: Guest[]; album: string[] };
 type Tab = "content" | "guests" | "rsvp" | "wishes" | "password" | "backup";
 
 
@@ -40,64 +42,6 @@ function Field({
       )}
       {hint && <span className="mt-1 block text-xs text-muted/80">{hint}</span>}
     </label>
-  );
-}
-
-/** Đưa ảnh lên Cloudinary qua /api/admin/uploads, trả về link ảnh */
-async function uploadFile(file: File) {
-  const form = new FormData();
-  form.append("file", file);
-  const res = await fetch("/api/admin/uploads", { method: "POST", body: form });
-  const body = await res.json().catch(() => null);
-  if (!res.ok || !body?.url) throw new Error(body?.error ?? "Không tải ảnh lên được");
-  return body.url as string;
-}
-
-const IMAGE_ACCEPT = "image/jpeg,image/png,image/webp,image/gif";
-
-/** Nút chọn ảnh từ máy; multiple thì chọn được nhiều ảnh một lúc */
-function UploadButton({ onUploaded, multiple, label = "Tải ảnh" }: { onUploaded: (urls: string[]) => void; multiple?: boolean; label?: string }) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-
-  const onPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
-    e.target.value = "";
-    if (!files.length) return;
-    setBusy(true);
-    setError("");
-    try {
-      onUploaded(await Promise.all(files.map(uploadFile)));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Không tải ảnh lên được");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <span className="inline-flex flex-col">
-      <label
-        className={`${buttonClass} h-[38px] shrink-0 border border-gold/40 px-3 text-wine hover:bg-blush/40 ${busy ? "pointer-events-none opacity-60" : ""}`}
-      >
-        {busy ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />} {label}
-        <input type="file" accept={IMAGE_ACCEPT} multiple={multiple} onChange={onPick} disabled={busy} className="sr-only" />
-      </label>
-      {error && <span className="mt-1 text-xs text-rose">{error}</span>}
-    </span>
-  );
-}
-
-function ImageField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
-  return (
-    <div className="flex items-end gap-3 sm:col-span-2">
-      <div className="min-w-0 flex-1">
-        <Field label={label} value={value} onChange={onChange} />
-      </div>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      {value && <img src={value} alt="" className="size-[38px] shrink-0 rounded-lg object-cover ring-1 ring-gold/30" />}
-      <UploadButton onUploaded={([url]) => onChange(url)} />
-    </div>
   );
 }
 
@@ -242,6 +186,7 @@ function ContentForm({
   onChange: (content: WeddingContent) => void;
 }) {
   const update = (changes: Partial<WeddingContent>) => onChange({ ...content, ...changes });
+  const album = useContext(AlbumContext);
 
   return (
     <div className="space-y-5">
@@ -286,22 +231,42 @@ function ContentForm({
 
       {section === "events" && (
       <Section title="Sự kiện">
-        <div className="mb-4">
-          <Field label="Địa chỉ trên bản đồ" value={content.mapQuery} onChange={(mapQuery) => update({ mapQuery })} />
+        <div className="mb-6 grid gap-4 sm:grid-cols-2">
+          {(["groom", "bride"] as const).map((side) => (
+            <div key={side} className="space-y-3 rounded-xl border border-gold/15 bg-ivory/60 p-4">
+              <p className="text-sm font-semibold text-ink">Địa điểm {SIDE_LABEL[side].toLowerCase()}</p>
+              <Field
+                label="Tên địa điểm"
+                value={content.places[side].venue}
+                onChange={(venue) => update({ places: { ...content.places, [side]: { ...content.places[side], venue } } })}
+              />
+              <Field
+                label="Địa chỉ (dùng cho bản đồ và chỉ đường)"
+                value={content.places[side].address}
+                onChange={(address) => update({ places: { ...content.places, [side]: { ...content.places[side], address } } })}
+              />
+              <p className="text-xs break-all text-muted">
+                Link chung cho khách {SIDE_LABEL[side].toLowerCase()}: <span className="font-mono">/?side={side}</span>
+              </p>
+            </div>
+          ))}
+          <p className="text-xs text-muted sm:col-span-2">
+            Các sự kiện dùng chung giờ, địa chỉ hiện theo bên: link có <span className="font-mono">?side=groom</span> /{" "}
+            <span className="font-mono">?side=bride</span>, hoặc link mời riêng theo bên đã chọn cho khách. Không rõ bên nào thì thiệp hiện cả
+            hai (như khung xem trước).
+          </p>
         </div>
         <ListEditor
           items={content.events}
           onChange={(events) => update({ events })}
           itemLabel="Sự kiện"
-          blank={{ title: "", side: "", start: "", end: "", venue: "", address: "", image: "", main: false }}
+          blank={{ title: "", side: "", start: "", end: "", image: "", main: false }}
           render={(event, patch) => (
             <div className={grid}>
               <Field label="Tên sự kiện" value={event.title} onChange={(title) => patch({ title })} />
               <Field label="Nhãn (vd: Ngày thứ nhất)" value={event.side} onChange={(side) => patch({ side })} />
               <DateField label="Bắt đầu (giờ Việt Nam)" value={event.start} onChange={(start) => patch({ start })} />
               <DateField label="Kết thúc (giờ Việt Nam)" value={event.end} onChange={(end) => patch({ end })} />
-              <Field label="Địa điểm" value={event.venue} onChange={(venue) => patch({ venue })} />
-              <Field label="Địa chỉ" value={event.address} onChange={(address) => patch({ address })} />
               <ImageField label="Ảnh" value={event.image} onChange={(image) => patch({ image })} />
               <label className="flex items-center gap-2 text-sm text-ink sm:col-span-2">
                 <input
@@ -346,21 +311,23 @@ function ContentForm({
 
       {section === "gallery" && (
         <Section title="Album">
-          <Field
-            label="Album ảnh"
-            hint="Mỗi dòng một ảnh: /images/ten-anh.jpg (trong thư mục public), link images.unsplash.com hoặc ảnh tải lên"
-            multiline
-            rows={14}
-            value={content.gallery.join("\n")}
-            onChange={(value) => update({ gallery: value.split("\n") })}
-          />
-          <div className="mt-3">
-            <UploadButton
-              multiple
-              label="Tải thêm ảnh vào album"
-              onUploaded={(urls) => update({ gallery: [...content.gallery.filter((line) => line.trim()), ...urls] })}
-            />
+          <div className="mb-5 flex flex-wrap items-center gap-3 rounded-xl border border-gold/20 bg-blush/20 p-3">
+            <p className="min-w-0 flex-1 text-sm text-ink/80">
+              Chọn ngẫu nhiên ảnh hợp với từng phần (trang chủ, cô dâu chú rể, sự kiện, chuyện tình, cuối trang) và {SUGGESTED_GALLERY_SIZE} ảnh
+              cho album. Bấm lại để đổi bộ khác, ưng thì bấm Lưu.
+            </p>
+            <button
+              type="button"
+              onClick={() => onChange(withSuggestedImages(content, album))}
+              className={`${buttonClass} shrink-0 bg-wine px-4 py-2 text-ivory hover:bg-rose`}
+            >
+              <Shuffle className="size-4" /> Gợi ý ngẫu nhiên
+            </button>
           </div>
+          <GalleryEditor gallery={content.gallery} order={content.galleryOrder ?? []} onChange={update} />
+          <p className="mt-4 text-xs text-muted">
+            Ảnh lấy từ thư mục public/albums. Ảnh thứ 4 đang hiển thị được dùng làm nền phần Xác nhận tham dự.
+          </p>
         </Section>
       )}
 
@@ -405,7 +372,6 @@ function ContentForm({
 }
 
 const formatDate =(iso: string) => new Date(iso).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" });
-const SIDE_LABEL: Record<string, string> = { groom: "Nhà trai", bride: "Nhà gái" };
 
 function RsvpList({ items, invited }: { items: Rsvp[]; invited: Guest[] }) {
   const guestById = new Map(invited.map((g) => [g.id, g]));
@@ -439,7 +405,7 @@ function RsvpList({ items, invited }: { items: Rsvp[]; invited: Guest[] }) {
                 <td className="py-2 pr-4">{r.phone}</td>
                 <td className="py-2 pr-4">{r.attending ? "Có" : "Không"}</td>
                 <td className="py-2 pr-4">{r.attending ? r.guests : ""}</td>
-                <td className="py-2 pr-4">{SIDE_LABEL[r.side] ?? r.side}</td>
+                <td className="py-2 pr-4">{SIDE_LABEL[r.side as keyof typeof SIDE_LABEL] ?? r.side}</td>
                 <td className="py-2 pr-4">{r.note}</td>
                 <td className="py-2 whitespace-nowrap text-muted">{formatDate(r.createdAt)}</td>
               </tr>
@@ -722,7 +688,9 @@ export function AdminApp() {
                   </button>
                 ))}
               </nav>
-              <ContentForm content={data.content} section={section} onChange={(content) => setData({ ...data, content })} />
+              <AlbumContext value={data.album}>
+                <ContentForm content={data.content} section={section} onChange={(content) => setData({ ...data, content })} />
+              </AlbumContext>
             </div>
             <PhonePreview content={data.content} section={section} />
           </div>

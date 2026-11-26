@@ -4,8 +4,14 @@ import { appendToCollection, clean, readCollection } from "@/lib/store";
 export type Wish = { id: string; name: string; message: string; createdAt: string };
 
 export async function GET() {
-  const wishes = await readCollection<Wish>("wishes");
-  return NextResponse.json(wishes.slice(0, 100));
+  try {
+    const wishes = await readCollection<Wish>("wishes");
+    return NextResponse.json(Array.isArray(wishes) ? wishes.slice(0, 100) : []);
+  } catch (error) {
+    // database lỗi: thiệp vẫn mở bình thường, chỉ chưa hiện lời chúc
+    console.error("[wishes] read failed", error);
+    return NextResponse.json([]);
+  }
 }
 
 export async function POST(request: Request) {
