@@ -7,3 +7,6 @@ next-env.d.ts
 .env*.local
 data/*.json
 backups/
+
+# ảnh gốc từ máy ảnh (rất nặng), chỉ giữ trên máy; bản cho web nằm trong public/albums
+albums-original/

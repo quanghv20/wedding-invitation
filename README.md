@@ -14,7 +14,7 @@ npm run build && npm start
 
 Toàn bộ nội dung (tên, ngày giờ, địa điểm, ảnh, câu chuyện, tài khoản ngân hàng) nằm trong database và được sửa ở trang **`/admin`**. `src/config/wedding.ts` chỉ là nội dung mặc định.
 
-- **Ảnh**: mọi ảnh nằm trong `public/albums/` (thêm/bớt file rồi deploy). Ở `/admin`, các trường ảnh chọn ảnh từ album; phần Album cho kéo thả để đổi thứ tự và tick để chọn ảnh nào hiển thị.
+- **Ảnh**: mọi ảnh nằm trong `public/albums/` (thêm/bớt file rồi deploy). Ảnh gốc từ máy ảnh để trong `albums-original/` (không commit), chạy `node scripts/optimize-albums.cjs` để tạo bản cho web (cạnh dài 2560px, ~300KB/ảnh, giữ nguyên tên file). Ở `/admin`, các trường ảnh chọn ảnh từ album; phần Album cho kéo thả để đổi thứ tự và tick để chọn ảnh nào hiển thị.
 - **Nhạc nền**: bỏ file vào `public/music/wedding.mp3` (hoặc sửa `music`). Không có file thì nút nhạc tự ẩn.
 - **Thiệp riêng cho từng khách**: thêm `?to=` vào link, ví dụ `/?to=Anh Nam & Chị Lan`.
 - **Mã QR mừng cưới**: tự sinh qua VietQR từ `bankId` + `accountNo`.
