@@ -1,6 +1,6 @@
 import { promises as fs } from "fs";
 import path from "path";
-import { getValue, hasDatabase, prependValue, setValue } from "./db";
+import { getValue, hasDatabase, prependValue, setValue, updateValue } from "./db";
 
 /**
  * Lưu trữ RSVP & lời chúc.
@@ -55,5 +55,22 @@ export async function appendToCollection<T>(name: string, item: T, fallback: T[]
   return items;
 }
 
-export const clean = (value: unknown, max: number) =>
+/**
+ * Thêm mới hoặc thay bản đã có: `build` nhận các mục trùng (theo `matches`) và trả về mục mới;
+ * các mục trùng bị bỏ, mục mới đứng đầu danh sách.
+ */
+export async function upsertInCollection<T>(name: string, matches: (item: T) => boolean, build: (existing: T[]) => T) {
+  const apply = (items: T[]) => {
+    const list = Array.isArray(items) ? items : [];
+    const existing = list.filter(matches);
+    return [build(existing), ...list.filter((item) => !matches(item))];
+  };
+  if (hasDatabase()) return updateValue<T[]>(name, [], apply);
+
+  const items = apply(await readCollection<T>(name));
+  await writeCollection(name, items);
+  return items;
+}
+
+export const clean =(value: unknown, max: number) =>
   typeof value === "string" ? value.trim().slice(0, max) : "";

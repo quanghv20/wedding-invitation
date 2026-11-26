@@ -62,3 +62,9 @@ export const mapsUrl = (query: string) =>
 
 export const mapsEmbedUrl = (query: string) =>
   `https://www.google.com/maps?q=${encodeURIComponent(query)}&output=embed`;
+
+/** "+84 986.915.765" và "0986915765" là một số: chỉ giữ chữ số, đầu 84 đổi thành 0 */
+export function normalizePhone(phone: string) {
+  const digits = phone.replace(/\D/g, "");
+  return digits.startsWith("84") && digits.length >= 11 ? `0${digits.slice(2)}` : digits;
+}

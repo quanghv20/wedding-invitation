@@ -44,7 +44,7 @@ export const wedding = {
   quoteAuthor: "Antoine de Saint-Exupéry",
 
   hero: {
-    image: album("VYK04324"),
+    image: album("VYK04563-"),
   },
 
   /** `main: true` là sự kiện được hiển thị nổi bật trên trang Home */
@@ -54,7 +54,7 @@ export const wedding = {
       side: "Ngày thứ nhất",
       start: "2026-12-05T17:00:00+07:00",
       end: "2026-12-05T21:00:00+07:00",
-      image: album("VYK04465"),
+      image: album("VYK04805"),
       main: false,
     },
     {
@@ -62,7 +62,7 @@ export const wedding = {
       side: "Ngày thứ hai",
       start: "2026-12-06T10:00:00+07:00",
       end: "2026-12-06T11:00:00+07:00",
-      image: album("VYK04308"),
+      image: album("VYK04347"),
       main: false,
     },
     {
@@ -70,7 +70,7 @@ export const wedding = {
       side: "Ngày thứ hai",
       start: "2026-12-06T11:00:00+07:00",
       end: "2026-12-06T12:00:00+07:00",
-      image: album("VYK04150"),
+      image: album("VYK04819"),
       main: true,
     },
   ],
@@ -82,7 +82,7 @@ export const wedding = {
    */
   places: {
     groom: { venue: "Nhà Văn Hóa", address: "Thôn Lai Cách, Đa Phúc, Hà Nội" },
-    bride: { venue: "Tư gia nhà gái", address: "Số 12 thôn Tân Lập, Sóc Sơn, Hà Nội" },
+    bride: { venue: "Tư gia nhà gái", address: "Số 12 Thôn Tân Lập, Sóc Sơn, Hà Nội" },
   },
 
   story: [

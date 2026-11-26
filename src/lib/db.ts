@@ -45,6 +45,31 @@ export async function setValue(key: string, value: unknown) {
   );
 }
 
+/**
+ * Đọc - sửa - ghi một key trong cùng transaction, khóa dòng (FOR UPDATE) để hai lượt gửi
+ * cùng lúc chạy lần lượt, không ghi đè nhau.
+ */
+export async function updateValue<T>(key: string, initial: T, update: (current: T) => T): Promise<T> {
+  const client = await db().connect();
+  try {
+    await client.query("BEGIN");
+    await client.query("INSERT INTO wedding_data (key, value) VALUES ($1, $2::jsonb) ON CONFLICT (key) DO NOTHING", [
+      key,
+      JSON.stringify(initial),
+    ]);
+    const { rows } = await client.query("SELECT value FROM wedding_data WHERE key = $1 FOR UPDATE", [key]);
+    const next = update(rows[0].value as T);
+    await client.query("UPDATE wedding_data SET value = $2::jsonb, updated_at = now() WHERE key = $1", [key, JSON.stringify(next)]);
+    await client.query("COMMIT");
+    return next;
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 /** Thêm vào đầu danh sách trong một câu lệnh, để hai khách gửi cùng lúc không ghi đè nhau */
 export async function prependValue<T>(key: string, item: T, initial: T[] = []): Promise<T[]> {
   const { rows } = await db().query(

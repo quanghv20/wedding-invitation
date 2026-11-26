@@ -9,15 +9,22 @@ const file = (name: string) => `${ALBUM_DIR}${name}.jpg`;
 /** Nhóm ảnh hợp với từng vị trí (xếp theo nội dung ảnh trong public/albums) */
 const POOLS = {
   // cận cảnh hai người, hợp khung vòm nhỏ
-  hero: ["VYK04324", "VYK04892", "VYK03839", "VYK04347", "VYK04479", "VYK04600"],
+  hero: ["VYK04563-", "VYK04479", "VYK04324", "VYK04892", "VYK03839", "VYK04347", "VYK04600"],
   // chú rể nổi bật trong khung (không có ảnh chụp riêng chú rể)
   groom: ["VYK04892", "VYK04630", "VYK04600", "VYK04324", "VYK04969"],
   bride: ["VYK04730", "VYK04975", "VYK04397"],
-  event: ["VYK04465", "VYK04308", "VYK04150", "VYK04007", "VYK04216", "VYK04443", "VYK04832"],
   story: ["VYK04397", "VYK03839", "VYK04007", "VYK03684", "VYK04150", "VYK04347", "VYK04206"],
   // nền tối có chữ "Thank you" đè lên: tránh ảnh có sẵn chữ
   footer: ["VYK04419", "VYK04465", "VYK04347", "VYK03684"],
 };
+
+/** Ảnh sự kiện theo bối cảnh chụp: các sự kiện lấy ở bối cảnh khác nhau để không trông giống nhau */
+const EVENT_SCENES = [
+  ["VYK04150", "VYK04007", "VYK04206", "VYK03684"], // rừng
+  ["VYK04308", "VYK04465", "VYK04216", "VYK04443"], // vườn thông
+  ["VYK04805", "VYK04832", "VYK04969", "VYK04795"], // studio vest be
+  ["VYK04600", "VYK04594-ghep", "VYK04494", "VYK04630"], // studio vest đen
+];
 
 /** Gần trùng với ảnh khác, không đưa vào album */
 const NEAR_DUPLICATES = new Set(["VYK04217", "VYK04594-", "VYK04563-"].map(file));
@@ -52,7 +59,10 @@ export function withSuggestedImages(content: WeddingContent, album: string[]): W
     hero: { image: pick(POOLS.hero) },
     groom: { ...content.groom, photo: pick(POOLS.groom) },
     bride: { ...content.bride, photo: pick(POOLS.bride) },
-    events: content.events.map((e) => ({ ...e, image: pick(POOLS.event) })),
+    events: (() => {
+      const scenes = shuffle(EVENT_SCENES);
+      return content.events.map((e, i) => ({ ...e, image: pick(scenes[i % scenes.length]) }));
+    })(),
     story: content.story.map((s) => ({ ...s, image: pick(POOLS.story) })),
     footerImage: pick(POOLS.footer),
   };

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
+import { normalizePhone } from "@/lib/format";
 import { isGuestId } from "@/lib/guest";
-import { appendToCollection, clean } from "@/lib/store";
+import { appendToCollection, clean, upsertInCollection } from "@/lib/store";
 
 export type Rsvp = {
   id: string;
@@ -12,6 +13,7 @@ export type Rsvp = {
   note: string;
   /** Có khi khách gửi từ link mời riêng */
   guestId?: string;
+  /** Lần phản hồi gần nhất (khách gửi lại thì cập nhật) */
   createdAt: string;
 };
 
@@ -34,6 +36,16 @@ export async function POST(request: Request) {
     createdAt: new Date().toISOString(),
   };
 
-  await appendToCollection("rsvp", rsvp);
+  // Cùng số điện thoại là cùng một khách: cập nhật phản hồi cũ thay vì thêm dòng mới
+  const phone = normalizePhone(rsvp.phone);
+  if (!phone) {
+    await appendToCollection("rsvp", rsvp);
+  } else {
+    await upsertInCollection<Rsvp>(
+      "rsvp",
+      (r) => normalizePhone(r.phone ?? "") === phone,
+      ([previous]) => ({ ...rsvp, id: previous?.id ?? rsvp.id, guestId: rsvp.guestId ?? previous?.guestId }),
+    );
+  }
   return NextResponse.json({ ok: true });
 }
