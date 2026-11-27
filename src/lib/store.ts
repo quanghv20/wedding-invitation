@@ -72,5 +72,15 @@ export async function upsertInCollection<T>(name: string, matches: (item: T) => 
   return items;
 }
 
+/** Đọc - sửa - ghi cả danh sách trong một lần (có database thì nằm trong một transaction) */
+export async function updateCollection<T>(name: string, apply: (items: T[]) => T[]) {
+  const run = (items: T[]) => apply(Array.isArray(items) ? items : []);
+  if (hasDatabase()) return updateValue<T[]>(name, [], run);
+
+  const items = run(await readCollection<T>(name));
+  await writeCollection(name, items);
+  return items;
+}
+
 export const clean =(value: unknown, max: number) =>
   typeof value === "string" ? value.trim().slice(0, max) : "";

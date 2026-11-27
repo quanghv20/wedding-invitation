@@ -1,24 +1,42 @@
 "use client";
 
-import { useCallback, useContext, useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, DatabaseBackup, ExternalLink, Eye, EyeOff, KeyRound, Loader2, LogOut, Plus, Save, Shuffle, Trash2 } from "lucide-react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { Alert, App, Button, Card, Checkbox, Col, DatePicker, Flex, Form, Input, Menu, Result, Row, Select, Space, Spin, Table, Tabs, Tag, Tooltip, Typography } from "antd";
+import type { TableColumnsType } from "antd";
+import {
+  ArrowDownOutlined,
+  ArrowUpOutlined,
+  CloudServerOutlined,
+  DeleteOutlined,
+  ExportOutlined,
+  KeyOutlined,
+  LogoutOutlined,
+  PlusOutlined,
+  SaveOutlined,
+  SearchOutlined,
+  SwapOutlined,
+} from "@ant-design/icons";
+import dayjs from "dayjs";
 import { EVENT_PLACES, EVENT_PLACE_LABEL, SIDE_LABEL, type EventPlace, type WeddingContent } from "@/config/wedding";
 import type { Rsvp } from "@/app/api/rsvp/route";
 import type { Wish } from "@/app/api/wishes/route";
 import { inviteeOf, type Guest } from "@/lib/guest";
+import { AdminTheme } from "./AdminTheme";
 import { AlbumContext, GalleryEditor, ImageField } from "./AlbumPicker";
 import { BackupManager } from "./BackupManager";
 import { SUGGESTED_GALLERY_SIZE, withSuggestedImages } from "./suggestImages";
 import { GuestManager } from "./GuestManager";
 import { PREVIEW_READY, PREVIEW_SECTIONS, PREVIEW_UPDATE, type PreviewMessage, type PreviewSection } from "./previewProtocol";
-import { Pagination, Section, buttonClass, inputClass, usePaged } from "./ui";
-import { Select } from "../ui/Select";
+import { Section, normalize, tablePagination, vnTime } from "./ui";
+
+const { Text } = Typography;
 
 const EVENT_PLACE_OPTIONS = EVENT_PLACES.map((value) => ({ value, label: EVENT_PLACE_LABEL[value] }));
 
 type Data = { content: WeddingContent; rsvp: Rsvp[]; wishes: Wish[]; guests: Guest[]; album: string[] };
 type Tab = "content" | "guests" | "rsvp" | "wishes" | "password" | "backup";
 
+// ---------- Ô nhập của form nội dung (nằm trong <Row>) ----------
 
 function Field({
   label,
@@ -27,6 +45,7 @@ function Field({
   multiline,
   rows = 3,
   hint,
+  full,
 }: {
   label: string;
   value: string;
@@ -34,36 +53,41 @@ function Field({
   multiline?: boolean;
   rows?: number;
   hint?: string;
+  /** Chiếm cả hàng (mặc định nửa hàng trên màn hình rộng, ô nhiều dòng luôn cả hàng) */
+  full?: boolean;
 }) {
   return (
-    <label className="block">
-      <span className="mb-1 block text-xs font-medium text-muted">{label}</span>
-      {multiline ? (
-        <textarea rows={rows} value={value} onChange={(e) => onChange(e.target.value)} className={inputClass} />
-      ) : (
-        <input value={value} onChange={(e) => onChange(e.target.value)} className={inputClass} />
-      )}
-      {hint && <span className="mt-1 block text-xs text-muted/80">{hint}</span>}
-    </label>
+    <Col xs={24} sm={full || multiline ? 24 : 12}>
+      <Form.Item label={label} extra={hint}>
+        {multiline ? (
+          <Input.TextArea rows={rows} value={value} onChange={(e) => onChange(e.target.value)} />
+        ) : (
+          <Input value={value} onChange={(e) => onChange(e.target.value)} />
+        )}
+      </Form.Item>
+    </Col>
   );
 }
 
-/** Ngày giờ lưu dạng ISO cố định múi giờ Việt Nam */
-function DateField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+/** Ngày giờ lưu dạng ISO cố định múi giờ Việt Nam; chỉ sửa phần giờ đồng hồ, không đổi múi giờ */
+function DateField({ label, value, onChange, full }: { label: string; value: string; onChange: (value: string) => void; full?: boolean }) {
+  const parsed = value ? dayjs(value.slice(0, 16)) : null;
   return (
-    <label className="block">
-      <span className="mb-1 block text-xs font-medium text-muted">{label}</span>
-      <input
-        type="datetime-local"
-        value={value.slice(0, 16)}
-        onChange={(e) => onChange(e.target.value ? `${e.target.value}:00+07:00` : "")}
-        className={inputClass}
-      />
-    </label>
+    <Col xs={24} sm={full ? 24 : 12}>
+      <Form.Item label={label}>
+        <DatePicker
+          showTime={{ format: "HH:mm" }}
+          format="DD/MM/YYYY HH:mm"
+          value={parsed?.isValid() ? parsed : null}
+          onChange={(d) => onChange(d ? `${d.format("YYYY-MM-DDTHH:mm")}:00+07:00` : "")}
+          style={{ width: "100%" }}
+        />
+      </Form.Item>
+    </Col>
   );
 }
 
-const grid = "grid gap-4 sm:grid-cols-2";
+const GUTTER = 16;
 
 function ListEditor<T>({
   items,
@@ -83,63 +107,52 @@ function ListEditor<T>({
     next.splice(to, 0, ...next.splice(from, 1));
     onChange(next);
   };
-  const iconButton = "cursor-pointer rounded-full p-1.5 text-muted transition hover:bg-blush/60 hover:text-wine disabled:opacity-30";
 
   return (
-    <div className="space-y-4">
+    <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
       {items.map((item, i) => (
-        <div key={i} className="rounded-xl border border-gold/15 bg-ivory/60 p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <span className="text-sm font-semibold text-ink">
-              {itemLabel} {i + 1}
-            </span>
-            <div className="flex gap-1">
-              <button type="button" aria-label="Chuyển lên" disabled={i === 0} onClick={() => move(i, i - 1)} className={iconButton}>
-                <ArrowUp className="size-4" />
-              </button>
-              <button type="button" aria-label="Chuyển xuống" disabled={i === items.length - 1} onClick={() => move(i, i + 1)} className={iconButton}>
-                <ArrowDown className="size-4" />
-              </button>
-              <button type="button" aria-label="Xóa" onClick={() => onChange(items.filter((_, j) => j !== i))} className={iconButton}>
-                <Trash2 className="size-4" />
-              </button>
-            </div>
-          </div>
-          {render(item, (changes) => onChange(items.map((it, j) => (j === i ? { ...it, ...changes } : it))))}
-        </div>
+        <Card
+          key={i}
+          size="small"
+          type="inner"
+          title={`${itemLabel} ${i + 1}`}
+          extra={
+            <Space size={0}>
+              <Tooltip title="Chuyển lên">
+                <Button type="text" size="small" icon={<ArrowUpOutlined />} disabled={i === 0} onClick={() => move(i, i - 1)} />
+              </Tooltip>
+              <Tooltip title="Chuyển xuống">
+                <Button type="text" size="small" icon={<ArrowDownOutlined />} disabled={i === items.length - 1} onClick={() => move(i, i + 1)} />
+              </Tooltip>
+              <Tooltip title="Xóa">
+                <Button type="text" size="small" danger icon={<DeleteOutlined />} onClick={() => onChange(items.filter((_, j) => j !== i))} />
+              </Tooltip>
+            </Space>
+          }
+        >
+          <Row gutter={GUTTER}>{render(item, (changes) => onChange(items.map((it, j) => (j === i ? { ...it, ...changes } : it))))}</Row>
+        </Card>
       ))}
-      <button
-        type="button"
-        onClick={() => onChange([...items, blank])}
-        className={`${buttonClass} border border-gold/40 px-4 py-2 text-wine hover:bg-blush/40`}
-      >
-        <Plus className="size-4" /> Thêm {itemLabel.toLowerCase()}
-      </button>
-    </div>
+      <Button type="dashed" block icon={<PlusOutlined />} onClick={() => onChange([...items, blank])}>
+        Thêm {itemLabel.toLowerCase()}
+      </Button>
+    </Space>
   );
 }
 
-function PersonFields({
-  person,
-  onChange,
-}: {
-  person: WeddingContent["groom"];
-  onChange: (person: WeddingContent["groom"]) => void;
-}) {
+function PersonFields({ person, onChange }: { person: WeddingContent["groom"]; onChange: (person: WeddingContent["groom"]) => void }) {
   const patch = (changes: Partial<WeddingContent["groom"]>) => onChange({ ...person, ...changes });
   return (
-    <div className={grid}>
+    <Row gutter={GUTTER}>
       <Field label="Tên hiển thị" value={person.name} onChange={(name) => patch({ name })} />
       <Field label="Họ tên đầy đủ" value={person.fullName} onChange={(fullName) => patch({ fullName })} />
       <Field label="Vai trò" value={person.role} onChange={(role) => patch({ role })} />
       <Field label="Ngày sinh" value={person.birthday} onChange={(birthday) => patch({ birthday })} />
       <Field label="Bố" value={person.parents.father} onChange={(father) => patch({ parents: { ...person.parents, father } })} />
       <Field label="Mẹ" value={person.parents.mother} onChange={(mother) => patch({ parents: { ...person.parents, mother } })} />
-      <div className="sm:col-span-2">
-        <Field label="Giới thiệu" multiline value={person.bio} onChange={(bio) => patch({ bio })} />
-      </div>
+      <Field label="Giới thiệu" multiline value={person.bio} onChange={(bio) => patch({ bio })} />
       <ImageField label="Ảnh" value={person.photo} onChange={(photo) => patch({ photo })} />
-    </div>
+    </Row>
   );
 }
 
@@ -165,329 +178,342 @@ function PhonePreview({ content, section }: { content: WeddingContent; section: 
   }, [readyCount, content, section]);
 
   return (
-    <aside className="sticky top-[72px] hidden lg:block">
+    <aside className="sticky top-[80px] hidden lg:block">
       <p className="mb-2 text-center text-xs font-medium text-muted">Xem trước: {label}</p>
       <div className="overflow-hidden rounded-[2.5rem] border-[10px] border-ink bg-ink shadow-xl">
         <iframe
           ref={frameRef}
           src="/admin/preview"
           title="Xem trước trên điện thoại"
-          className="block h-[min(calc(100svh-190px),780px)] w-[390px] rounded-[1.75rem] bg-white"
+          className="block h-[min(calc(100svh-200px),780px)] w-[390px] rounded-[1.75rem] bg-white"
         />
       </div>
     </aside>
   );
 }
 
-function ContentForm({
-  content,
-  section,
-  onChange,
-}: {
-  content: WeddingContent;
-  section: PreviewSection;
-  onChange: (content: WeddingContent) => void;
-}) {
+function ContentForm({ content, section, onChange }: { content: WeddingContent; section: PreviewSection; onChange: (content: WeddingContent) => void }) {
   const update = (changes: Partial<WeddingContent>) => onChange({ ...content, ...changes });
   const album = useContext(AlbumContext);
 
   return (
-    <div className="space-y-5">
-      {section === "home" && (
-        <Section title="Trang chủ">
-          <div className={grid}>
-            <Field label="Tên chú rể" value={content.groom.name} onChange={(name) => update({ groom: { ...content.groom, name } })} />
-            <Field label="Tên cô dâu" value={content.bride.name} onChange={(name) => update({ bride: { ...content.bride, name } })} />
-            <div className="sm:col-span-2">
-              <Field label="Ngày âm lịch" value={content.lunarDate} onChange={(lunarDate) => update({ lunarDate })} />
-            </div>
-            <ImageField label="Ảnh chính" value={content.hero.image} onChange={(image) => update({ hero: { image } })} />
-          </div>
-          <p className="mt-4 text-xs text-muted">Lịch trình và địa điểm ở trang chủ được sửa trong tab Sự kiện.</p>
-        </Section>
-      )}
+    <Form layout="vertical" component={false}>
+      <Space orientation="vertical" size="large" style={{ width: "100%" }}>
+        {section === "home" && (
+          <Section title="Trang chủ">
+            <Row gutter={GUTTER}>
+              <Field label="Tên chú rể" value={content.groom.name} onChange={(name) => update({ groom: { ...content.groom, name } })} />
+              <Field label="Tên cô dâu" value={content.bride.name} onChange={(name) => update({ bride: { ...content.bride, name } })} />
+              <Field full label="Ngày âm lịch" value={content.lunarDate} onChange={(lunarDate) => update({ lunarDate })} />
+              <ImageField label="Ảnh chính" value={content.hero.image} onChange={(image) => update({ hero: { image } })} />
+            </Row>
+            <Text type="secondary">Lịch trình và địa điểm ở trang chủ được sửa trong tab Sự kiện.</Text>
+          </Section>
+        )}
 
-      {section === "countdown" && (
-        <Section title="Đếm ngược & lời dẫn">
-          <div className={grid}>
-            <div className="sm:col-span-2">
-              <DateField label="Thời điểm đếm ngược (giờ Việt Nam)" value={content.date} onChange={(date) => update({ date })} />
-            </div>
-            <div className="sm:col-span-2">
+        {section === "countdown" && (
+          <Section title="Đếm ngược & lời dẫn">
+            <Row gutter={GUTTER}>
+              <DateField full label="Thời điểm đếm ngược (giờ Việt Nam)" value={content.date} onChange={(date) => update({ date })} />
               <Field label="Câu trích dẫn" multiline rows={2} value={content.quote} onChange={(quote) => update({ quote })} />
-            </div>
-            <Field label="Tác giả câu trích dẫn" value={content.quoteAuthor} onChange={(quoteAuthor) => update({ quoteAuthor })} />
-          </div>
-        </Section>
-      )}
-
-      {section === "couple" && (
-        <>
-          <Section title="Chú rể">
-            <PersonFields person={content.groom} onChange={(groom) => update({ groom })} />
+              <Field label="Tác giả câu trích dẫn" value={content.quoteAuthor} onChange={(quoteAuthor) => update({ quoteAuthor })} />
+            </Row>
           </Section>
-          <Section title="Cô dâu">
-            <PersonFields person={content.bride} onChange={(bride) => update({ bride })} />
-          </Section>
-        </>
-      )}
+        )}
 
-      {section === "events" && (
-      <Section title="Sự kiện">
-        <div className="mb-6 grid gap-4 sm:grid-cols-2">
-          {(["groom", "bride"] as const).map((side) => (
-            <div key={side} className="space-y-3 rounded-xl border border-gold/15 bg-ivory/60 p-4">
-              <p className="text-sm font-semibold text-ink">Địa điểm {SIDE_LABEL[side].toLowerCase()}</p>
-              <Field
-                label="Tên địa điểm"
-                value={content.places[side].venue}
-                onChange={(venue) => update({ places: { ...content.places, [side]: { ...content.places[side], venue } } })}
-              />
-              <Field
-                label="Địa chỉ (dùng cho bản đồ và chỉ đường)"
-                value={content.places[side].address}
-                onChange={(address) => update({ places: { ...content.places, [side]: { ...content.places[side], address } } })}
-              />
-              <p className="text-xs break-all text-muted">
-                Link chung cho khách {SIDE_LABEL[side].toLowerCase()}: <span className="font-mono">/?side={side}</span>
-              </p>
-            </div>
-          ))}
-          <p className="text-xs text-muted sm:col-span-2">
-            Sự kiện chọn địa điểm &quot;Theo bên của khách&quot; thì địa chỉ hiện theo bên: link có <span className="font-mono">?side=groom</span> /{" "}
-            <span className="font-mono">?side=bride</span>, hoặc link mời riêng theo bên đã chọn cho khách. Không rõ bên nào thì thiệp hiện cả
-            hai (như khung xem trước).
-          </p>
-        </div>
-        <ListEditor
-          items={content.events}
-          onChange={(events) => update({ events })}
-          itemLabel="Sự kiện"
-          blank={{ title: "", side: "", start: "", end: "", image: "", main: false, place: "guest" as EventPlace }}
-          render={(event, patch) => (
-            <div className={grid}>
-              <Field label="Tên sự kiện" value={event.title} onChange={(title) => patch({ title })} />
-              <Field label="Nhãn (vd: Ngày thứ nhất)" value={event.side} onChange={(side) => patch({ side })} />
-              <DateField label="Bắt đầu (giờ Việt Nam)" value={event.start} onChange={(start) => patch({ start })} />
-              <DateField label="Kết thúc (giờ Việt Nam)" value={event.end} onChange={(end) => patch({ end })} />
-              <div>
-                <span className="mb-1 block text-xs font-medium text-muted">Địa điểm</span>
-                <Select
-                  value={event.place}
-                  onChange={(place) => patch({ place: place as EventPlace })}
-                  options={EVENT_PLACE_OPTIONS}
-                  aria-label="Địa điểm sự kiện"
-                  className={inputClass}
-                />
-              </div>
-              <ImageField label="Ảnh" value={event.image} onChange={(image) => patch({ image })} />
-              <label className="flex items-center gap-2 text-sm text-ink sm:col-span-2">
-                <input
-                  type="checkbox"
-                  checked={event.main}
-                  onChange={(e) =>
-                    update({
-                      events: content.events.map((it) =>
-                        it === event ? { ...it, main: e.target.checked } : { ...it, main: e.target.checked ? false : it.main },
-                      ),
-                    })
+        {section === "couple" && (
+          <>
+            <Section title="Chú rể">
+              <PersonFields person={content.groom} onChange={(groom) => update({ groom })} />
+            </Section>
+            <Section title="Cô dâu">
+              <PersonFields person={content.bride} onChange={(bride) => update({ bride })} />
+            </Section>
+          </>
+        )}
+
+        {section === "events" && (
+          <Section title="Sự kiện">
+            <Row gutter={[GUTTER, GUTTER]} style={{ marginBottom: 16 }}>
+              {(["groom", "bride"] as const).map((side) => (
+                <Col key={side} xs={24} sm={12}>
+                  <Card size="small" type="inner" title={`Địa điểm ${SIDE_LABEL[side].toLowerCase()}`}>
+                    <Row gutter={GUTTER}>
+                      <Field
+                        full
+                        label="Tên địa điểm"
+                        value={content.places[side].venue}
+                        onChange={(venue) => update({ places: { ...content.places, [side]: { ...content.places[side], venue } } })}
+                      />
+                      <Field
+                        full
+                        label="Địa chỉ (dùng cho bản đồ và chỉ đường)"
+                        value={content.places[side].address}
+                        onChange={(address) => update({ places: { ...content.places, [side]: { ...content.places[side], address } } })}
+                      />
+                    </Row>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      Link chung cho khách {SIDE_LABEL[side].toLowerCase()}: <Text code>/?side={side}</Text>
+                    </Text>
+                  </Card>
+                </Col>
+              ))}
+              <Col span={24}>
+                <Alert
+                  type="info"
+                  showIcon
+                  title={
+                    <>
+                      Sự kiện chọn địa điểm &quot;Theo bên của khách&quot; thì địa chỉ hiện theo bên: link có <Text code>?side=groom</Text> /{" "}
+                      <Text code>?side=bride</Text>, hoặc link mời riêng theo bên đã chọn cho khách. Không rõ bên nào thì thiệp hiện cả hai (như khung
+                      xem trước).
+                    </>
                   }
                 />
-                Sự kiện chính (hiển thị nổi bật ở đầu trang)
-              </label>
-            </div>
-          )}
-        />
-      </Section>
-      )}
+              </Col>
+            </Row>
+            <ListEditor
+              items={content.events}
+              onChange={(events) => update({ events })}
+              itemLabel="Sự kiện"
+              blank={{ title: "", side: "", start: "", end: "", image: "", main: false, place: "guest" as EventPlace }}
+              render={(event, patch) => (
+                <>
+                  <Field label="Tên sự kiện" value={event.title} onChange={(title) => patch({ title })} />
+                  <Field label="Nhãn (vd: Ngày thứ nhất)" value={event.side} onChange={(side) => patch({ side })} />
+                  <DateField label="Bắt đầu (giờ Việt Nam)" value={event.start} onChange={(start) => patch({ start })} />
+                  <DateField label="Kết thúc (giờ Việt Nam)" value={event.end} onChange={(end) => patch({ end })} />
+                  <Col xs={24} sm={12}>
+                    <Form.Item label="Địa điểm">
+                      <Select value={event.place} options={EVENT_PLACE_OPTIONS} onChange={(place) => patch({ place })} />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} sm={12}>
+                    <Form.Item label=" " colon={false}>
+                      <Checkbox
+                        checked={event.main}
+                        onChange={(e) =>
+                          update({
+                            events: content.events.map((it) =>
+                              it === event ? { ...it, main: e.target.checked } : { ...it, main: e.target.checked ? false : it.main },
+                            ),
+                          })
+                        }
+                      >
+                        Sự kiện chính (hiển thị nổi bật ở đầu trang)
+                      </Checkbox>
+                    </Form.Item>
+                  </Col>
+                  <ImageField label="Ảnh" value={event.image} onChange={(image) => patch({ image })} />
+                </>
+              )}
+            />
+          </Section>
+        )}
 
-      {section === "story" && (
-      <Section title="Chuyện tình">
-        <ListEditor
-          items={content.story}
-          onChange={(story) => update({ story })}
-          itemLabel="Chương"
-          blank={{ date: "", title: "", text: "", image: "" }}
-          render={(item, patch) => (
-            <div className={grid}>
-              <Field label="Thời gian" value={item.date} onChange={(date) => patch({ date })} />
-              <Field label="Tiêu đề" value={item.title} onChange={(title) => patch({ title })} />
-              <div className="sm:col-span-2">
-                <Field label="Nội dung" multiline value={item.text} onChange={(text) => patch({ text })} />
-              </div>
-              <ImageField label="Ảnh" value={item.image} onChange={(image) => patch({ image })} />
-            </div>
-          )}
-        />
-      </Section>
-      )}
+        {section === "story" && (
+          <Section title="Chuyện tình">
+            <ListEditor
+              items={content.story}
+              onChange={(story) => update({ story })}
+              itemLabel="Chương"
+              blank={{ date: "", title: "", text: "", image: "" }}
+              render={(item, patch) => (
+                <>
+                  <Field label="Thời gian" value={item.date} onChange={(date) => patch({ date })} />
+                  <Field label="Tiêu đề" value={item.title} onChange={(title) => patch({ title })} />
+                  <Field label="Nội dung" multiline value={item.text} onChange={(text) => patch({ text })} />
+                  <ImageField label="Ảnh" value={item.image} onChange={(image) => patch({ image })} />
+                </>
+              )}
+            />
+          </Section>
+        )}
 
-      {section === "gallery" && (
-        <Section title="Album">
-          <div className="mb-5 flex flex-wrap items-center gap-3 rounded-xl border border-gold/20 bg-blush/20 p-3">
-            <p className="min-w-0 flex-1 text-sm text-ink/80">
-              Chọn ngẫu nhiên ảnh hợp với từng phần (trang chủ, cô dâu chú rể, sự kiện, chuyện tình, cuối trang) và {SUGGESTED_GALLERY_SIZE} ảnh
-              cho album. Bấm lại để đổi bộ khác, ưng thì bấm Lưu.
-            </p>
-            <button
-              type="button"
-              onClick={() => onChange(withSuggestedImages(content, album))}
-              className={`${buttonClass} shrink-0 bg-wine px-4 py-2 text-ivory hover:bg-rose`}
-            >
-              <Shuffle className="size-4" /> Gợi ý ngẫu nhiên
-            </button>
-          </div>
-          <GalleryEditor gallery={content.gallery} order={content.galleryOrder ?? []} onChange={update} />
-          <p className="mt-4 text-xs text-muted">
-            Ảnh lấy từ thư mục public/albums. Ảnh thứ 4 đang hiển thị được dùng làm nền phần Xác nhận tham dự.
-          </p>
-        </Section>
-      )}
+        {section === "gallery" && (
+          <Section title="Album">
+            <Alert
+              style={{ marginBottom: 20 }}
+              type="info"
+              title={`Chọn ngẫu nhiên ảnh hợp với từng phần (trang chủ, cô dâu chú rể, sự kiện, chuyện tình, cuối trang) và ${SUGGESTED_GALLERY_SIZE} ảnh cho album. Bấm lại để đổi bộ khác, ưng thì bấm Lưu.`}
+              action={
+                <Button type="primary" icon={<SwapOutlined />} onClick={() => onChange(withSuggestedImages(content, album))}>
+                  Gợi ý ngẫu nhiên
+                </Button>
+              }
+            />
+            <GalleryEditor gallery={content.gallery} order={content.galleryOrder ?? []} onChange={update} />
+            <Text type="secondary" style={{ display: "block", marginTop: 16 }}>
+              Ảnh lấy từ thư mục public/albums. Ảnh thứ 4 đang hiển thị được dùng làm nền phần Xác nhận tham dự.
+            </Text>
+          </Section>
+        )}
 
-      {section === "rsvp" && (
-        <Section title="Xác nhận tham dự">
-          <Field label="Hạn xác nhận tham dự" value={content.rsvpDeadline} onChange={(rsvpDeadline) => update({ rsvpDeadline })} />
-          <p className="mt-4 text-xs text-muted">Ảnh nền của phần này là ảnh thứ 4 trong Album. Form trong khung xem trước không gửi dữ liệu thật.</p>
-        </Section>
-      )}
+        {section === "rsvp" && (
+          <Section title="Xác nhận tham dự">
+            <Row gutter={GUTTER}>
+              <Field full label="Hạn xác nhận tham dự" value={content.rsvpDeadline} onChange={(rsvpDeadline) => update({ rsvpDeadline })} />
+            </Row>
+            <Text type="secondary">Ảnh nền của phần này là ảnh thứ 4 trong Album. Form trong khung xem trước không gửi dữ liệu thật.</Text>
+          </Section>
+        )}
 
-      {section === "footer" && (
-        <Section title="Cuối trang & nhạc">
-          <div className={grid}>
-            <ImageField label="Ảnh cuối trang" value={content.footerImage} onChange={(footerImage) => update({ footerImage })} />
-            <Field label="Ngày hiển thị ở cuối trang" value={content.displayDate} onChange={(displayDate) => update({ displayDate })} />
-            <Field label="Nhạc nền" value={content.music} onChange={(music) => update({ music })} />
-          </div>
-        </Section>
-      )}
+        {section === "footer" && (
+          <Section title="Cuối trang & nhạc">
+            <Row gutter={GUTTER}>
+              <ImageField label="Ảnh cuối trang" value={content.footerImage} onChange={(footerImage) => update({ footerImage })} />
+              <Field label="Ngày hiển thị ở cuối trang" value={content.displayDate} onChange={(displayDate) => update({ displayDate })} />
+              <Field label="Nhạc nền" value={content.music} onChange={(music) => update({ music })} />
+            </Row>
+          </Section>
+        )}
 
-      {section === "gift" && (
-      <Section title="Mừng cưới">
-        <ListEditor
-          items={content.gifts}
-          onChange={(gifts) => update({ gifts })}
-          itemLabel="Tài khoản"
-          blank={{ label: "", bankId: "", bankName: "", accountNo: "", accountName: "" }}
-          render={(gift, patch) => (
-            <div className={grid}>
-              <Field label="Tiêu đề" value={gift.label} onChange={(label) => patch({ label })} />
-              <Field label="Tên ngân hàng" value={gift.bankName} onChange={(bankName) => patch({ bankName })} />
-              <Field label="Mã VietQR (VCB, TCB, MB...)" value={gift.bankId} onChange={(bankId) => patch({ bankId })} />
-              <Field label="Số tài khoản" value={gift.accountNo} onChange={(accountNo) => patch({ accountNo })} />
-              <Field label="Chủ tài khoản" value={gift.accountName} onChange={(accountName) => patch({ accountName })} />
-            </div>
-          )}
-        />
-      </Section>
-      )}
-    </div>
+        {section === "gift" && (
+          <Section title="Mừng cưới">
+            <ListEditor
+              items={content.gifts}
+              onChange={(gifts) => update({ gifts })}
+              itemLabel="Tài khoản"
+              blank={{ label: "", bankId: "", bankName: "", accountNo: "", accountName: "" }}
+              render={(gift, patch) => (
+                <>
+                  <Field label="Tiêu đề" value={gift.label} onChange={(label) => patch({ label })} />
+                  <Field label="Tên ngân hàng" value={gift.bankName} onChange={(bankName) => patch({ bankName })} />
+                  <Field label="Mã VietQR (VCB, TCB, MB...)" value={gift.bankId} onChange={(bankId) => patch({ bankId })} />
+                  <Field label="Số tài khoản" value={gift.accountNo} onChange={(accountNo) => patch({ accountNo })} />
+                  <Field label="Chủ tài khoản" value={gift.accountName} onChange={(accountName) => patch({ accountName })} />
+                </>
+              )}
+            />
+          </Section>
+        )}
+      </Space>
+    </Form>
   );
 }
 
-const formatDate =(iso: string) => new Date(iso).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" });
+// ---------- Xác nhận tham dự & lời chúc ----------
+
+const byNewest = (a: { createdAt: string }, b: { createdAt: string }) => a.createdAt.localeCompare(b.createdAt);
 
 function RsvpList({ items, invited }: { items: Rsvp[]; invited: Guest[] }) {
-  const guestById = new Map(invited.map((g) => [g.id, g]));
-  const { topRef, shown, pagination } = usePaged(items);
+  const [query, setQuery] = useState("");
+  const guestById = useMemo(() => new Map(invited.map((g) => [g.id, g])), [invited]);
   const coming = items.filter((r) => r.attending);
-  const guests = coming.reduce((sum, r) => sum + r.guests, 0);
+  const people = coming.reduce((sum, r) => sum + r.guests, 0);
+  const q = normalize(query.trim());
+  const visible = q ? items.filter((r) => normalize(`${r.name} ${r.phone} ${r.note}`).includes(q)) : items;
+
+  const columns: TableColumnsType<Rsvp> = [
+    {
+      title: "Tên",
+      key: "name",
+      width: 220,
+      sorter: (a, b) => a.name.localeCompare(b.name, "vi"),
+      render: (_, r) => (
+        <>
+          <Text strong>{r.name}</Text>
+          {r.guestId && guestById.has(r.guestId) && (
+            <Text type="secondary" style={{ display: "block", fontSize: 12 }}>
+              Link mời: {inviteeOf(guestById.get(r.guestId))}
+            </Text>
+          )}
+        </>
+      ),
+    },
+    { title: "Điện thoại", dataIndex: "phone", width: 130 },
+    {
+      title: "Tham dự",
+      key: "attending",
+      width: 110,
+      filters: [
+        { text: "Có", value: true },
+        { text: "Không", value: false },
+      ],
+      onFilter: (value, r) => r.attending === value,
+      render: (_, r) => (r.attending ? <Tag color="green">Có</Tag> : <Tag color="red">Không</Tag>),
+    },
+    { title: "Số người", key: "guests", width: 100, align: "right", sorter: (a, b) => a.guests - b.guests, render: (_, r) => (r.attending ? r.guests : "") },
+    {
+      title: "Bên",
+      key: "side",
+      width: 110,
+      filters: Object.entries(SIDE_LABEL).map(([value, text]) => ({ text, value })),
+      onFilter: (value, r) => r.side === value,
+      render: (_, r) => SIDE_LABEL[r.side as keyof typeof SIDE_LABEL] ?? r.side,
+    },
+    { title: "Ghi chú", dataIndex: "note", width: 240 },
+    {
+      title: "Thời gian",
+      key: "createdAt",
+      width: 170,
+      sorter: byNewest,
+      defaultSortOrder: "descend",
+      render: (_, r) => <Text type="secondary">{vnTime(r.createdAt)}</Text>,
+    },
+  ];
+
   return (
     <Section title="Xác nhận tham dự">
-      <div ref={topRef} className="scroll-mt-24" />
-      <p className="mb-4 text-sm text-muted">
-        {items.length} phản hồi · {coming.length} sẽ đến · tổng {guests} khách
-      </p>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] text-left text-sm">
-          <thead className="border-b border-gold/30 text-xs text-muted">
-            <tr>
-              {["Tên", "Điện thoại", "Tham dự", "Số người", "Bên", "Ghi chú", "Thời gian"].map((h) => (
-                <th key={h} className="py-2 pr-4 font-medium">
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {shown.map((r) => (
-              <tr key={r.id} className="border-b border-gold/10 align-top">
-                <td className="py-2 pr-4 font-medium text-ink">
-                  {r.name}
-                  {r.guestId && guestById.has(r.guestId) && (
-                    <span className="block text-xs font-normal text-muted">Link mời: {inviteeOf(guestById.get(r.guestId))}</span>
-                  )}
-                </td>
-                <td className="py-2 pr-4">{r.phone}</td>
-                <td className="py-2 pr-4">{r.attending ? "Có" : "Không"}</td>
-                <td className="py-2 pr-4">{r.attending ? r.guests : ""}</td>
-                <td className="py-2 pr-4">{SIDE_LABEL[r.side as keyof typeof SIDE_LABEL] ?? r.side}</td>
-                <td className="py-2 pr-4">{r.note}</td>
-                <td className="py-2 whitespace-nowrap text-muted">{formatDate(r.createdAt)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <Pagination {...pagination} />
+      <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
+        <Flex wrap gap={8}>
+          <Tag>{items.length} phản hồi</Tag>
+          <Tag color="green">{coming.length} sẽ đến</Tag>
+          <Tag color="gold">Tổng {people} khách</Tag>
+        </Flex>
+        <Input
+          allowClear
+          prefix={<SearchOutlined />}
+          placeholder="Tìm theo tên, số điện thoại, ghi chú..."
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          style={{ maxWidth: 420 }}
+        />
+        <Table<Rsvp> rowKey="id" size="middle" columns={columns} dataSource={visible} scroll={{ x: "max-content" }} pagination={tablePagination} />
+      </Space>
     </Section>
   );
 }
 
 function WishList({ items }: { items: Wish[] }) {
-  const { topRef, shown, pagination } = usePaged(items);
-
+  const columns: TableColumnsType<Wish> = [
+    { title: "Tên", key: "name", width: 200, render: (_, w) => <Text strong>{w.name}</Text> },
+    { title: "Lời chúc", dataIndex: "message" },
+    {
+      title: "Thời gian",
+      key: "createdAt",
+      width: 170,
+      sorter: byNewest,
+      defaultSortOrder: "descend",
+      render: (_, w) => <Text type="secondary">{vnTime(w.createdAt)}</Text>,
+    },
+  ];
   return (
     <Section title={`Lời chúc (${items.length})`}>
-      <div ref={topRef} className="scroll-mt-24" />
-      {!items.length && <p className="text-sm text-muted">Chưa có lời chúc nào.</p>}
-      <ul className="space-y-3">
-        {shown.map((w) => (
-          <li key={w.id} className="rounded-xl border border-gold/15 bg-ivory/60 p-4 text-sm">
-            <p className="font-medium text-ink">{w.name}</p>
-            <p className="mt-1 text-ink/80">{w.message}</p>
-            <p className="mt-2 text-xs text-muted">{formatDate(w.createdAt)}</p>
-          </li>
-        ))}
-      </ul>
-      <Pagination {...pagination} />
+      <Table<Wish>
+        rowKey="id"
+        size="middle"
+        columns={columns}
+        dataSource={items}
+        scroll={{ x: 640 }}
+        pagination={tablePagination}
+        locale={{ emptyText: "Chưa có lời chúc nào." }}
+      />
     </Section>
   );
 }
 
-/** Ô mật khẩu có nút con mắt để hiện / ẩn */
-function PasswordInput(props: { name: string; autoComplete: string; minLength?: number; placeholder?: string }) {
-  const [visible, setVisible] = useState(false);
-  const Icon = visible ? EyeOff : Eye;
-  return (
-    <div className="relative">
-      <input {...props} type={visible ? "text" : "password"} required className={`${inputClass} pr-10`} />
-      <button
-        type="button"
-        onClick={() => setVisible((v) => !v)}
-        aria-label={visible ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
-        aria-pressed={visible}
-        className="absolute inset-y-0 right-0 flex w-10 cursor-pointer items-center justify-center text-muted transition hover:text-wine"
-      >
-        <Icon className="size-4" />
-      </button>
-    </div>
-  );
-}
+// ---------- Đăng nhập & mật khẩu ----------
 
 function LoginForm({ onLoggedIn }: { onLoggedIn: () => void }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const onFinish = async (values: { username: string; password: string }) => {
     setBusy(true);
     setError("");
     try {
-      const res = await fetch("/api/admin/session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(Object.fromEntries(new FormData(e.currentTarget))),
-      });
+      const res = await fetch("/api/admin/session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(values) });
       if (res.ok) return onLoggedIn();
       setError((await res.json().catch(() => null))?.error ?? "Có lỗi xảy ra");
     } catch {
@@ -499,44 +525,42 @@ function LoginForm({ onLoggedIn }: { onLoggedIn: () => void }) {
 
   return (
     <main className="flex min-h-svh items-center justify-center bg-ivory px-4">
-      <form onSubmit={onSubmit} className="w-full max-w-sm space-y-4 rounded-2xl border border-gold/20 bg-white p-8 shadow-lg">
-        <h1 className="text-center font-serif text-3xl font-semibold text-wine">Quản trị thiệp</h1>
-        <input name="username" required autoComplete="username" placeholder="Tài khoản" className={inputClass} />
-        <PasswordInput name="password" autoComplete="current-password" placeholder="Mật khẩu" />
-        {error && <p className="text-sm text-rose">{error}</p>}
-        <button disabled={busy} className={`${buttonClass} w-full bg-wine px-4 py-2.5 text-ivory hover:bg-rose`}>
-          {busy && <Loader2 className="size-4 animate-spin" />} Đăng nhập
-        </button>
-      </form>
+      <Card style={{ width: "100%", maxWidth: 380 }}>
+        <h1 className="mb-6 text-center font-serif text-3xl font-semibold text-wine">Quản trị thiệp</h1>
+        <Form layout="vertical" onFinish={onFinish} requiredMark={false}>
+          <Form.Item name="username" rules={[{ required: true, message: "Nhập tài khoản" }]}>
+            <Input size="large" autoComplete="username" placeholder="Tài khoản" />
+          </Form.Item>
+          <Form.Item name="password" rules={[{ required: true, message: "Nhập mật khẩu" }]}>
+            <Input.Password size="large" autoComplete="current-password" placeholder="Mật khẩu" />
+          </Form.Item>
+          {error && <Alert type="error" showIcon title={error} style={{ marginBottom: 16 }} />}
+          <Button type="primary" htmlType="submit" size="large" block loading={busy}>
+            Đăng nhập
+          </Button>
+        </Form>
+      </Card>
     </main>
   );
 }
 
+type PasswordValues = { currentPassword: string; newPassword: string; confirmPassword: string };
+
 function PasswordForm({ onUnauthorized }: { onUnauthorized: () => void }) {
-  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const { message } = App.useApp();
+  const [form] = Form.useForm<PasswordValues>();
   const [busy, setBusy] = useState(false);
 
-  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const form = e.currentTarget;
-    const values = Object.fromEntries(new FormData(form));
-    if (values.newPassword !== values.confirmPassword) {
-      return setMessage({ ok: false, text: "Mật khẩu xác nhận không khớp" });
-    }
+  const onFinish = async (values: PasswordValues) => {
     setBusy(true);
-    setMessage(null);
     try {
-      const res = await fetch("/api/admin/session", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
-      });
+      const res = await fetch("/api/admin/session", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(values) });
       if (res.status === 401) return onUnauthorized();
-      if (!res.ok) return setMessage({ ok: false, text: (await res.json().catch(() => null))?.error ?? "Có lỗi xảy ra" });
-      form.reset();
-      setMessage({ ok: true, text: "Đã đổi mật khẩu" });
+      if (!res.ok) return message.error((await res.json().catch(() => null))?.error ?? "Có lỗi xảy ra");
+      form.resetFields();
+      message.success("Đã đổi mật khẩu");
     } catch {
-      setMessage({ ok: false, text: "Không kết nối được tới server" });
+      message.error("Không kết nối được tới server");
     } finally {
       setBusy(false);
     }
@@ -544,33 +568,58 @@ function PasswordForm({ onUnauthorized }: { onUnauthorized: () => void }) {
 
   return (
     <Section title="Đổi mật khẩu">
-      <form onSubmit={onSubmit} className="max-w-sm space-y-4">
-        {[
-          { name: "currentPassword", label: "Mật khẩu cũ", autoComplete: "current-password", minLength: undefined },
-          { name: "newPassword", label: "Mật khẩu mới (ít nhất 8 ký tự)", autoComplete: "new-password", minLength: 8 },
-          { name: "confirmPassword", label: "Xác nhận mật khẩu mới", autoComplete: "new-password", minLength: 8 },
-        ].map((f) => (
-          <label key={f.name} className="block">
-            <span className="mb-1 block text-xs font-medium text-muted">{f.label}</span>
-            <PasswordInput name={f.name} autoComplete={f.autoComplete} minLength={f.minLength} />
-          </label>
-        ))}
-        {message && <p className={`text-sm ${message.ok ? "text-gold-dark" : "text-rose"}`}>{message.text}</p>}
-        <button disabled={busy} className={`${buttonClass} bg-wine px-6 py-2.5 text-ivory hover:bg-rose`}>
-          {busy && <Loader2 className="size-4 animate-spin" />} Đổi mật khẩu
-        </button>
-      </form>
+      <Form form={form} layout="vertical" onFinish={onFinish} style={{ maxWidth: 380 }}>
+        <Form.Item name="currentPassword" label="Mật khẩu cũ" rules={[{ required: true, message: "Nhập mật khẩu cũ" }]}>
+          <Input.Password autoComplete="current-password" />
+        </Form.Item>
+        <Form.Item
+          name="newPassword"
+          label="Mật khẩu mới"
+          rules={[
+            { required: true, message: "Nhập mật khẩu mới" },
+            { min: 8, message: "Ít nhất 8 ký tự" },
+          ]}
+        >
+          <Input.Password autoComplete="new-password" />
+        </Form.Item>
+        <Form.Item
+          name="confirmPassword"
+          label="Xác nhận mật khẩu mới"
+          dependencies={["newPassword"]}
+          rules={[
+            { required: true, message: "Nhập lại mật khẩu mới" },
+            ({ getFieldValue }) => ({
+              validator: (_, value) =>
+                !value || value === getFieldValue("newPassword") ? Promise.resolve() : Promise.reject(new Error("Mật khẩu xác nhận không khớp")),
+            }),
+          ]}
+        >
+          <Input.Password autoComplete="new-password" />
+        </Form.Item>
+        <Button type="primary" htmlType="submit" loading={busy}>
+          Đổi mật khẩu
+        </Button>
+      </Form>
     </Section>
   );
 }
 
-export function AdminApp() {
+// ---------- Khung trang ----------
+
+function AdminShell() {
+  const { message } = App.useApp();
   const [status, setStatus] = useState<"loading" | "login" | "ready" | "error">("loading");
   const [data, setData] = useState<Data | null>(null);
+  /** Nội dung đã lưu trên server, để biết đang có thay đổi chưa lưu */
+  const [savedContent, setSavedContent] = useState("");
   const [tab, setTab] = useState<Tab>("content");
   const [section, setSection] = useState<PreviewSection>("home");
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const receive = useCallback((next: Data) => {
+    setData(next);
+    setSavedContent(JSON.stringify(next.content));
+  }, []);
 
   const load = useCallback(async () => {
     setStatus("loading");
@@ -578,41 +627,41 @@ export function AdminApp() {
       const res = await fetch("/api/admin/data", { cache: "no-store" });
       if (res.status === 401) return setStatus("login");
       if (!res.ok) return setStatus("error");
-      setData(await res.json());
+      receive(await res.json());
       setStatus("ready");
     } catch {
       setStatus("error");
     }
-  }, []);
+  }, [receive]);
 
   /** Tải lại dữ liệu ngầm (sau khi khôi phục backup), không xóa màn hình đang xem */
   const reload = useCallback(async () => {
     const res = await fetch("/api/admin/data", { cache: "no-store" }).catch(() => null);
     if (res?.status === 401) return setStatus("login");
-    if (res?.ok) setData(await res.json());
-  }, []);
+    if (res?.ok) receive(await res.json());
+  }, [receive]);
+
+  const unauthorized = useCallback(() => setStatus("login"), []);
 
   useEffect(() => {
     load();
   }, [load]);
 
+  const dirty = !!data && JSON.stringify(data.content) !== savedContent;
+
   const save = async () => {
     if (!data) return;
     setSaving(true);
-    setMessage(null);
     try {
-      const res = await fetch("/api/admin/data", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data.content),
-      });
+      const res = await fetch("/api/admin/data", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data.content) });
       if (res.status === 401) return setStatus("login");
       const result = await res.json().catch(() => null);
-      if (!res.ok) return setMessage({ ok: false, text: result?.error ?? "Không lưu được" });
+      if (!res.ok) return message.error(result?.error ?? "Không lưu được");
       setData({ ...data, content: result.content });
-      setMessage({ ok: true, text: "Đã lưu, thiệp đã cập nhật" });
+      setSavedContent(JSON.stringify(result.content));
+      message.success("Đã lưu, thiệp đã cập nhật");
     } catch {
-      setMessage({ ok: false, text: "Không kết nối được tới server" });
+      message.error("Không kết nối được tới server");
     } finally {
       setSaving(false);
     }
@@ -626,89 +675,74 @@ export function AdminApp() {
 
   if (status === "login") return <LoginForm onLoggedIn={load} />;
   if (status === "error") {
-    return <main className="flex min-h-svh items-center justify-center bg-ivory text-sm text-rose">Không tải được dữ liệu từ database</main>;
+    return (
+      <main className="flex min-h-svh items-center justify-center bg-ivory">
+        <Result
+          status="error"
+          title="Không tải được dữ liệu từ database"
+          extra={
+            <Button type="primary" onClick={load}>
+              Thử lại
+            </Button>
+          }
+        />
+      </main>
+    );
   }
   if (status === "loading" || !data) {
     return (
       <main className="flex min-h-svh items-center justify-center bg-ivory">
-        <Loader2 className="size-6 animate-spin text-gold" />
+        <Spin size="large" />
       </main>
     );
   }
 
-  const tabs: { id: Tab; label: string }[] = [
-    { id: "content", label: "Nội dung thiệp" },
-    { id: "guests", label: `Khách mời (${data.guests.length})` },
-    { id: "rsvp", label: `Xác nhận (${data.rsvp.length})` },
-    { id: "wishes", label: `Lời chúc (${data.wishes.length})` },
+  const menuItems = [
+    { key: "content", label: "Nội dung thiệp" },
+    { key: "guests", label: `Khách mời (${data.guests.length})` },
+    { key: "rsvp", label: `Xác nhận (${data.rsvp.length})` },
+    { key: "wishes", label: `Lời chúc (${data.wishes.length})` },
   ];
+  const iconTab = (id: Tab, title: string, icon: React.ReactNode) => (
+    <Tooltip title={title}>
+      <Button type={tab === id ? "primary" : "text"} ghost={tab === id} shape="circle" icon={icon} aria-label={title} onClick={() => setTab(id)} />
+    </Tooltip>
+  );
 
   return (
     <div className="min-h-svh bg-ivory text-ink">
-      <header className="sticky top-0 z-10 border-b border-gold/20 bg-white/95">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
-          <h1 className="font-serif text-xl font-semibold text-wine">Quản trị thiệp</h1>
-          <nav className="flex gap-1">
-            {tabs.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => setTab(t.id)}
-                className={`cursor-pointer rounded-full px-3 py-1.5 text-sm transition ${tab === t.id ? "bg-wine text-ivory" : "text-muted hover:bg-blush/50"}`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </nav>
-          <div className="ml-auto flex items-center gap-1">
-            <a href="/" target="_blank" rel="noreferrer" aria-label="Xem thiệp" className="rounded-full p-2 text-muted transition hover:bg-blush/50 hover:text-wine">
-              <ExternalLink className="size-4" />
-            </a>
-            <button
-              type="button"
-              onClick={() => setTab("password")}
-              aria-label="Đổi mật khẩu"
-              aria-pressed={tab === "password"}
-              className={`cursor-pointer rounded-full p-2 transition hover:bg-blush/50 hover:text-wine ${tab === "password" ? "bg-blush/50 text-wine" : "text-muted"}`}
-            >
-              <KeyRound className="size-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setTab("backup")}
-              aria-label="Sao lưu & khôi phục"
-              title="Sao lưu & khôi phục"
-              aria-pressed={tab === "backup"}
-              className={`cursor-pointer rounded-full p-2 transition hover:bg-blush/50 hover:text-wine ${tab === "backup" ? "bg-blush/50 text-wine" : "text-muted"}`}
-            >
-              <DatabaseBackup className="size-4" />
-            </button>
-            <button type="button" onClick={logout} aria-label="Đăng xuất" className="cursor-pointer rounded-full p-2 text-muted transition hover:bg-blush/50 hover:text-wine">
-              <LogOut className="size-4" />
-            </button>
-          </div>
+      <header className="sticky top-0 z-20 border-b border-gold/20 bg-white">
+        <div className="mx-auto flex max-w-[1400px] items-center gap-4 px-4">
+          <h1 className="shrink-0 font-serif text-xl font-semibold text-wine">Quản trị thiệp</h1>
+          <Menu
+            mode="horizontal"
+            selectedKeys={[tab]}
+            items={menuItems}
+            onClick={({ key }) => setTab(key as Tab)}
+            style={{ flex: 1, minWidth: 0, borderBottom: "none" }}
+          />
+          <Space size={4}>
+            <Tooltip title="Xem thiệp">
+              <Button type="text" shape="circle" icon={<ExportOutlined />} href="/" target="_blank" rel="noreferrer" aria-label="Xem thiệp" />
+            </Tooltip>
+            {iconTab("password", "Đổi mật khẩu", <KeyOutlined />)}
+            {iconTab("backup", "Sao lưu & khôi phục", <CloudServerOutlined />)}
+            <Tooltip title="Đăng xuất">
+              <Button type="text" shape="circle" icon={<LogoutOutlined />} onClick={logout} aria-label="Đăng xuất" />
+            </Tooltip>
+          </Space>
         </div>
       </header>
 
-      <main className={`mx-auto px-4 py-6 pb-28 ${tab === "content" ? "max-w-7xl" : "max-w-4xl"}`}>
+      <main className={`mx-auto px-4 py-6 pb-28 ${tab === "content" || tab === "guests" ? "max-w-[1400px]" : "max-w-5xl"}`}>
         {tab === "content" && (
           <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
             <div className="min-w-0">
-              <nav aria-label="Phần cần chỉnh sửa" className="mb-5 flex flex-wrap gap-2">
-                {PREVIEW_SECTIONS.map((s) => (
-                  <button
-                    key={s.id}
-                    type="button"
-                    aria-pressed={section === s.id}
-                    onClick={() => setSection(s.id)}
-                    className={`cursor-pointer rounded-full border px-3.5 py-1.5 text-sm transition ${
-                      section === s.id ? "border-wine bg-wine text-ivory" : "border-gold/30 bg-white text-ink/80 hover:bg-blush/50"
-                    }`}
-                  >
-                    {s.label}
-                  </button>
-                ))}
-              </nav>
+              <Tabs
+                activeKey={section}
+                onChange={(key) => setSection(key as PreviewSection)}
+                items={PREVIEW_SECTIONS.map((s) => ({ key: s.id, label: s.label }))}
+              />
               <AlbumContext value={data.album}>
                 <ContentForm content={data.content} section={section} onChange={(content) => setData({ ...data, content })} />
               </AlbumContext>
@@ -717,30 +751,32 @@ export function AdminApp() {
           </div>
         )}
         {tab === "guests" && (
-          <GuestManager
-            guests={data.guests}
-            rsvp={data.rsvp}
-            content={data.content}
-            onChange={(guests) => setData({ ...data, guests })}
-            onUnauthorized={() => setStatus("login")}
-          />
+          <GuestManager guests={data.guests} rsvp={data.rsvp} content={data.content} onChange={(guests) => setData({ ...data, guests })} onUnauthorized={unauthorized} />
         )}
         {tab === "rsvp" && <RsvpList items={data.rsvp} invited={data.guests} />}
         {tab === "wishes" && <WishList items={data.wishes} />}
-        {tab === "password" && <PasswordForm onUnauthorized={() => setStatus("login")} />}
-        {tab === "backup" && <BackupManager onUnauthorized={() => setStatus("login")} onRestored={reload} />}
+        {tab === "password" && <PasswordForm onUnauthorized={unauthorized} />}
+        {tab === "backup" && <BackupManager onUnauthorized={unauthorized} onRestored={reload} />}
       </main>
 
       {tab === "content" && (
-        <div className="fixed inset-x-0 bottom-0 z-10 border-t border-gold/20 bg-white/95">
-          <div className="mx-auto flex max-w-7xl items-center justify-end gap-4 px-4 py-3">
-            {message && <p className={`min-w-0 flex-1 text-sm ${message.ok ? "text-gold-dark" : "text-rose"}`}>{message.text}</p>}
-            <button type="button" onClick={save} disabled={saving} className={`${buttonClass} shrink-0 bg-wine px-6 py-2.5 text-ivory hover:bg-rose`}>
-              {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Lưu
-            </button>
-          </div>
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-gold/20 bg-white/95">
+          <Flex className="mx-auto max-w-[1400px] px-4 py-3" justify="end" align="center" gap={12}>
+            {dirty && <Tag color="warning">Có thay đổi chưa lưu</Tag>}
+            <Button type="primary" size="large" icon={<SaveOutlined />} loading={saving} onClick={save}>
+              Lưu
+            </Button>
+          </Flex>
         </div>
       )}
     </div>
+  );
+}
+
+export function AdminApp() {
+  return (
+    <AdminTheme>
+      <AdminShell />
+    </AdminTheme>
   );
 }
