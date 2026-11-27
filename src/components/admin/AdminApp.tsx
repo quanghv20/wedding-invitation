@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, App, Button, Card, Checkbox, Col, DatePicker, Flex, Form, Input, Menu, Result, Row, Select, Space, Spin, Table, Tabs, Tag, Tooltip, Typography } from "antd";
+import { Alert, App, Button, Card, Checkbox, Col, DatePicker, Flex, Form, Input, Menu, Result, Row, Select, Space, Spin, Table, Tag, Tooltip, Typography } from "antd";
 import type { TableColumnsType } from "antd";
 import {
   ArrowDownOutlined,
@@ -394,7 +394,7 @@ function ContentForm({ content, section, onChange }: { content: WeddingContent; 
 
 // ---------- Xác nhận tham dự & lời chúc ----------
 
-const byNewest = (a: { createdAt: string }, b: { createdAt: string }) => a.createdAt.localeCompare(b.createdAt);
+const byTime = (a: { createdAt: string }, b: { createdAt: string }) => a.createdAt.localeCompare(b.createdAt);
 
 function RsvpList({ items, invited }: { items: Rsvp[]; invited: Guest[] }) {
   const [query, setQuery] = useState("");
@@ -447,8 +447,7 @@ function RsvpList({ items, invited }: { items: Rsvp[]; invited: Guest[] }) {
       title: "Thời gian",
       key: "createdAt",
       width: 170,
-      sorter: byNewest,
-      defaultSortOrder: "descend",
+      sorter: byTime,
       render: (_, r) => <Text type="secondary">{vnTime(r.createdAt)}</Text>,
     },
   ];
@@ -483,8 +482,7 @@ function WishList({ items }: { items: Wish[] }) {
       title: "Thời gian",
       key: "createdAt",
       width: 170,
-      sorter: byNewest,
-      defaultSortOrder: "descend",
+      sorter: byTime,
       render: (_, w) => <Text type="secondary">{vnTime(w.createdAt)}</Text>,
     },
   ];
@@ -734,15 +732,26 @@ function AdminShell() {
         </div>
       </header>
 
-      <main className={`mx-auto px-4 py-6 pb-28 ${tab === "content" || tab === "guests" ? "max-w-[1400px]" : "max-w-5xl"}`}>
+      <main className={`mx-auto px-4 py-6 pb-28 ${tab === "password" || tab === "backup" ? "max-w-5xl" : "max-w-[1400px]"}`}>
         {tab === "content" && (
           <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
             <div className="min-w-0">
-              <Tabs
-                activeKey={section}
-                onChange={(key) => setSection(key as PreviewSection)}
-                items={PREVIEW_SECTIONS.map((s) => ({ key: s.id, label: s.label }))}
-              />
+              {/* Tự xuống dòng khi hẹp để luôn thấy đủ các phần (Tabs của antd sẽ giấu bớt vào nút "...") */}
+              <nav aria-label="Phần cần chỉnh sửa" style={{ marginBottom: 20 }}>
+                <Flex wrap gap={8}>
+                  {PREVIEW_SECTIONS.map((s) => (
+                    <Button
+                      key={s.id}
+                      shape="round"
+                      type={section === s.id ? "primary" : "default"}
+                      aria-pressed={section === s.id}
+                      onClick={() => setSection(s.id)}
+                    >
+                      {s.label}
+                    </Button>
+                  ))}
+                </Flex>
+              </nav>
               <AlbumContext value={data.album}>
                 <ContentForm content={data.content} section={section} onChange={(content) => setData({ ...data, content })} />
               </AlbumContext>
@@ -761,7 +770,7 @@ function AdminShell() {
 
       {tab === "content" && (
         <div className="fixed inset-x-0 bottom-0 z-20 border-t border-gold/20 bg-white/95">
-          <Flex className="mx-auto max-w-[1400px] px-4 py-3" justify="end" align="center" gap={12}>
+          <Flex style={{ maxWidth: 1400, margin: "0 auto", padding: "16px" }} justify="end" align="center" gap={12}>
             {dirty && <Tag color="warning">Có thay đổi chưa lưu</Tag>}
             <Button type="primary" size="large" icon={<SaveOutlined />} loading={saving} onClick={save}>
               Lưu
