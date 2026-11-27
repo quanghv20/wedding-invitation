@@ -40,11 +40,6 @@ function PersonCard({ person, from }: { person: Person; from: "left" | "right" }
       <h3 className="mt-10 font-script text-5xl text-wine md:text-6xl">{person.name}</h3>
       <p className="mt-2 rounded-full bg-blush/60 px-4 py-1 text-sm text-wine">Sinh ngày {person.birthday}</p>
       <p className="mt-4 max-w-sm font-serif text-lg leading-relaxed text-muted italic">{person.bio}</p>
-      <div className="mt-6 space-y-1 text-sm text-ink/80">
-        <p className="text-[11px] tracking-[0.3em] text-gold uppercase">Con của</p>
-        <p>{person.parents.father}</p>
-        <p>{person.parents.mother}</p>
-      </div>
     </Reveal>
   );
 }
