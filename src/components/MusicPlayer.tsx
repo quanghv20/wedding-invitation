@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { Music, Pause } from "lucide-react";
 import { useWedding } from "./WeddingProvider";
 
@@ -17,6 +17,11 @@ export function MusicPlayer() {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [playing, setPlaying] = useState(false);
   const [available, setAvailable] = useState(true);
+  // đã phát được lần nào chưa: chưa thì hiện gợi ý "Chạm để bật nhạc" (khách tự tắt nhạc thì không nhắc lại)
+  const [started, setStarted] = useState(false);
+  useEffect(() => {
+    if (playing) setStarted(true);
+  }, [playing]);
 
   // trình duyệt thường chặn tự phát nhạc: nếu bị chặn thì phát ở lần tương tác đầu tiên
   useEffect(() => {
@@ -91,6 +96,23 @@ export function MusicPlayer() {
           </span>
         </motion.button>
       )}
+      <AnimatePresence>
+        {available && !started && (
+          // chạm vào gợi ý cũng là chạm vào trang: listener ở trên tự phát nhạc
+          <motion.div
+            key="music-hint"
+            role="button"
+            aria-label="Chạm để bật nhạc"
+            initial={{ opacity: 0, x: 12 }}
+            animate={{ opacity: 1, x: [0, -4, 0] }}
+            exit={{ opacity: 0, x: 12 }}
+            transition={{ opacity: { delay: 1.8 }, x: { delay: 1.8, duration: 1.2, repeat: Infinity, repeatDelay: 1.5 } }}
+            className="fixed top-6.5 right-18 z-50 flex h-7 cursor-pointer items-center rounded-full bg-wine/90 px-3 text-xs font-medium whitespace-nowrap text-gold-light shadow-lg md:top-8.5 md:right-20"
+          >
+            🎵 Chạm để bật nhạc
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }
