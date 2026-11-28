@@ -5,11 +5,13 @@ import { motion } from "motion/react";
 import { Music, Pause } from "lucide-react";
 import { useWedding } from "./WeddingProvider";
 
-const UNLOCK_EVENTS = ["click", "keydown"];
+// thử phát ở mọi tương tác: chạm/click/phím chắc chắn được; cuộn/vuốt thì tùy trình duyệt có cho phát hay không
+const UNLOCK_EVENTS = ["pointerdown", "pointerup", "touchstart", "touchend", "click", "keydown", "scroll", "wheel", "touchmove"];
 
 export function MusicPlayer() {
   const wedding = useWedding();
   const audioRef = useRef<HTMLAudioElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const [playing, setPlaying] = useState(false);
   const [available, setAvailable] = useState(true);
 
@@ -18,17 +20,24 @@ export function MusicPlayer() {
     const audio = audioRef.current;
     if (!audio) return;
     audio.volume = 0.5;
+    let pending = false;
     const stopListening = () => UNLOCK_EVENTS.forEach((e) => window.removeEventListener(e, tryPlay));
-    const tryPlay = () => {
+    const tryPlay = (event?: Event) => {
+      // chạm vào nút nhạc thì để toggle xử lý, không thì vừa phát xong lại bị toggle tắt
+      if (event?.target instanceof Node && buttonRef.current?.contains(event.target)) return;
+      // cuộn bắn sự kiện liên tục: chỉ thử một lần mỗi lúc
+      if (pending || !audio.paused) return;
+      pending = true;
       audio
         .play()
         .then(() => {
           setPlaying(true);
           stopListening();
         })
-        .catch(() => setPlaying(false));
+        .catch(() => setPlaying(false))
+        .finally(() => (pending = false));
     };
-    UNLOCK_EVENTS.forEach((e) => window.addEventListener(e, tryPlay));
+    UNLOCK_EVENTS.forEach((e) => window.addEventListener(e, tryPlay, { passive: true }));
     tryPlay();
     return stopListening;
   }, []);
@@ -48,6 +57,7 @@ export function MusicPlayer() {
       <audio ref={audioRef} src={wedding.music} loop preload="none" onError={() => setAvailable(false)} />
       {available && (
         <motion.button
+          ref={buttonRef}
           type="button"
           onClick={toggle}
           initial={{ scale: 0, opacity: 0 }}
