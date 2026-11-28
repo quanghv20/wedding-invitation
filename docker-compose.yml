@@ -1,12 +1,38 @@
 services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: wedding
+      POSTGRES_DB: wedding
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Thiếu POSTGRES_PASSWORD trong .env}
+    volumes:
+      - wedding-db:/var/lib/postgresql/data
+      # chỉ chạy lần đầu khi volume còn trống: tạo bảng wedding_data
+      - ./scripts/db-init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    # chỉ mở cho chính server (để chạy restore / psql), không lộ ra internet
+    ports:
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wedding -d wedding"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   web:
     build: .
     image: wedding-invitation
     restart: unless-stopped
     ports:
       - "${APP_PORT:-3000}:3000"
-    # mọi biến trong .env (database, Cloudinary, SMTP, backup) được đưa vào container
+    # mọi biến trong .env (SMTP, backup...) được đưa vào container
     env_file: .env
+    # DATABASE_URL trong .env là cho máy dev; trong Docker luôn dùng Postgres của service db
+    environment:
+      DATABASE_URL: postgresql://wedding:${POSTGRES_PASSWORD}@db:5432/wedding
+    depends_on:
+      db:
+        condition: service_healthy
     volumes:
       - wedding-data:/app/data
     healthcheck:
@@ -14,7 +40,7 @@ services:
         - CMD
         - node
         - -e
-        - "fetch('http://127.0.0.1:3000/api/wishes').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+        - "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
       interval: 30s
       timeout: 5s
       retries: 3
@@ -22,3 +48,4 @@ services:
 
 volumes:
   wedding-data:
+  wedding-db:
