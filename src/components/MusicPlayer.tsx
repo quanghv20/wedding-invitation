@@ -8,6 +8,9 @@ import { useWedding } from "./WeddingProvider";
 // thử phát ở mọi tương tác: chạm/click/phím chắc chắn được; cuộn/vuốt thì tùy trình duyệt có cho phát hay không
 const UNLOCK_EVENTS = ["pointerdown", "pointerup", "touchstart", "touchend", "click", "keydown", "scroll", "wheel", "touchmove"];
 
+/** Bỏ đoạn dạo đầu: phát (và lặp lại) từ giây này */
+const MUSIC_START = 10;
+
 export function MusicPlayer() {
   const wedding = useWedding();
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -54,7 +57,17 @@ export function MusicPlayer() {
 
   return (
     <>
-      <audio ref={audioRef} src={wedding.music} loop preload="none" onError={() => setAvailable(false)} />
+      {/* #t= cho lần phát đầu bắt đầu từ MUSIC_START; hết bài thì tự quay lại MUSIC_START thay cho thuộc tính loop (vốn quay về 0) */}
+      <audio
+        ref={audioRef}
+        src={`${wedding.music}#t=${MUSIC_START}`}
+        preload="none"
+        onEnded={(e) => {
+          e.currentTarget.currentTime = MUSIC_START;
+          e.currentTarget.play().catch(() => setPlaying(false));
+        }}
+        onError={() => setAvailable(false)}
+      />
       {available && (
         <motion.button
           ref={buttonRef}
